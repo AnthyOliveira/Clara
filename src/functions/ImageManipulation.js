@@ -398,7 +398,7 @@ async function handleStickerBg(bot, message, args, group) {
       content: resultMedia,
       options: {
         sendMediaAsSticker: true,
-        stickerAuthor: "ravena",
+        stickerAuthor: "clara",
         stickerName: stickerName,
         quotedMessageId: message.origin.id._serialized
       }

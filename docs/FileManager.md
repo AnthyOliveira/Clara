@@ -105,4 +105,4 @@ Este sistema é implementado no arquivo `src/functions/FileManager.js` e utiliza
 
 ---
 
-*Este documento faz parte da [Documentação de Comandos do RavenaBot AI](README.md#documentação-dos-comandos)*
+*Este documento faz parte da [Documentação de Comandos do claraBot AI](README.md#documentação-dos-comandos)*

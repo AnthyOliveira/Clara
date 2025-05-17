@@ -823,7 +823,7 @@ class SuperAdmin {
       if (args.length === 0) {
         return new ReturnMessage({
           chatId: chatId,
-          content: 'Por favor, forneça o ID do bot a reiniciar. Exemplo: !sa-restart ravena-testes Manutenção programada'
+          content: 'Por favor, forneça o ID do bot a reiniciar. Exemplo: !sa-restart clara-testes Manutenção programada'
         });
       }
       

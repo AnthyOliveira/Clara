@@ -27,8 +27,8 @@ async function main() {
     logger.info(`Configuração de Chrome: Path=${chromePath || 'padrão'}, Headless=${headlessMode}`);
     
     // Cria primeira instância do bot
-    const ravenaTestes = new WhatsAppBot({
-      id: 'ravena-testes',
+    const claraTestes = new WhatsAppBot({
+      id: 'clara-testes',
       phoneNumber: '555596424307', // Número de telefone para solicitar código de pareamento
       eventHandler: eventHandler,
       prefix: process.env.DEFAULT_PREFIX || '!',
@@ -56,10 +56,10 @@ async function main() {
       linkAvisos: process.env.LINK_GRUPO_AVISOS
     });
     
-    botInstances.push(ravenaTestes);
+    botInstances.push(claraTestes);
     
     // Inicializa e inicia os bots
-    await ravenaTestes.initialize();
+    await claraTestes.initialize();
     
     logger.info('Todos os bots inicializados e rodando');
     

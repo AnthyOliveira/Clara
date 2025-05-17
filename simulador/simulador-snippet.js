@@ -9,14 +9,14 @@ const exemploDeMensagens = [
   /**
    * MENSAGEM DE TEXTO BÁSICA (REMETENTE)
    * id: identificador único da mensagem (obrigatório)
-   * origem: quem envia a mensagem - "remetente" (ravenabot) ou "destinatario" (usuário)
+   * origem: quem envia a mensagem - "remetente" (clarabot) ou "destinatario" (usuário)
    * mensagem: conteúdo de texto da mensagem
    * delay: tempo em ms para aparecer após a mensagem anterior (padrão: 500ms)
    */
   {
     "id": 1,
     "origem": "remetente",
-    "mensagem": "Olá! Eu sou o ravenabot. Como posso te ajudar hoje?",
+    "mensagem": "Olá! Eu sou o clarabot. Como posso te ajudar hoje?",
     "delay": 1000
   },
 

@@ -93,7 +93,7 @@ Mostra o ranking de quem mais fala no grupo.
 
 ### !grupao
 
-Adiciona o usuário ao grupo oficial de interação da Ravena.
+Adiciona o usuário ao grupo oficial de interação da clara.
 
 **Descrição:** Adiciona o usuário ao grupo principal de suporte e interação do bot.
 
@@ -106,7 +106,7 @@ Adiciona o usuário ao grupo oficial de interação da Ravena.
 
 ### !diferenças
 
-Exibe as diferenças para a versão anterior da Ravena.
+Exibe as diferenças para a versão anterior da clara.
 
 **Descrição:** Mostra um resumo das principais mudanças em relação à versão antiga do bot.
 
@@ -133,4 +133,4 @@ Este módulo está implementado nos arquivos:
 
 ---
 
-*Este documento faz parte da [Documentação de Comandos do RavenaBot AI](README.md#documentação-dos-comandos)*
+*Este documento faz parte da [Documentação de Comandos do claraBot AI](README.md#documentação-dos-comandos)*

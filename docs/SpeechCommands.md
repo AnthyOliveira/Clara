@@ -6,9 +6,9 @@ Este módulo implementa funcionalidades para conversão de texto para voz (TTS) 
 
 ### !tts
 
-Converte texto para voz usando o personagem 'ravena'.
+Converte texto para voz usando o personagem 'clara'.
 
-**Descrição:** Transforma o texto fornecido em uma mensagem de voz com a voz da Ravena.
+**Descrição:** Transforma o texto fornecido em uma mensagem de voz com a voz da clara.
 
 **Uso:** 
 - `!tts [texto]`
@@ -19,7 +19,7 @@ Converte texto para voz usando o personagem 'ravena'.
 - Responder a uma mensagem com `!tts` para converter seu conteúdo em áudio
 
 **Detalhes:**
-- Usa a voz personalizada "ravena" definida no sistema
+- Usa a voz personalizada "clara" definida no sistema
 - Gera áudios de alta qualidade utilizando o AllTalk/XTTS
 - Envia o resultado como mensagem de voz no WhatsApp
 
@@ -90,4 +90,4 @@ Este sistema é implementado no arquivo `src/functions/SpeechCommands.js` e util
 
 ---
 
-*Este documento faz parte da [Documentação de Comandos do RavenaBot AI](README.md#documentação-dos-comandos)*
+*Este documento faz parte da [Documentação de Comandos do claraBot AI](README.md#documentação-dos-comandos)*

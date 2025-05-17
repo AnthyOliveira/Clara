@@ -110,7 +110,7 @@ class UserGreetingManager {
         await fs.access(this.greetingTextPath);
       } catch (error) {
         // Se o arquivo não existir, cria com um texto padrão
-        const defaultGreeting = `🦇 *Olá! Eu sou a Ravena!* 🦇\n\nSou uma bot de WhatsApp com várias funções úteis!\n\nDigite *!cmd* para ver todos os comandos disponíveis. Aqui no privado, você pode:\n\n• Enviar áudios e eu farei a transcrição automaticamente\n• Enviar imagens/vídeos e eu crio figurinhas pra você\n• Utilizar comandos de texto para voz como *!tts* seguido do texto\n\nÉ possível também me adicionar em grupos! 😉`;
+        const defaultGreeting = `🦇 *Olá! Eu sou a clara!* 🦇\n\nSou uma bot de WhatsApp com várias funções úteis!\n\nDigite *!cmd* para ver todos os comandos disponíveis. Aqui no privado, você pode:\n\n• Enviar áudios e eu farei a transcrição automaticamente\n• Enviar imagens/vídeos e eu crio figurinhas pra você\n• Utilizar comandos de texto para voz como *!tts* seguido do texto\n\nÉ possível também me adicionar em grupos! 😉`;
         
         await fs.writeFile(this.greetingTextPath, defaultGreeting);
         this.logger.info('Arquivo de saudação criado com texto padrão');
@@ -122,7 +122,7 @@ class UserGreetingManager {
       return greeting;
     } catch (error) {
       this.logger.error('Erro ao obter texto de saudação:', error);
-      return "🦇 Olá! Eu sou a Ravena, um bot de WhatsApp. Digite !cmd para ver os comandos disponíveis.";
+      return "🦇 Olá! Eu sou a clara, um bot de WhatsApp. Digite !cmd para ver os comandos disponíveis.";
     }
   }
   

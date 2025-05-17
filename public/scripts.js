@@ -103,7 +103,7 @@ function extractPhoneFromBotId(botId, bots) {
     
     // Se não conseguir extrair do ID, verifica se temos um mapeamento explícito
     const botPhoneMap = {
-        'ravena-testes': '555596424307', // Exemplo baseado no código do index.js
+        'clara-testes': '555596424307', // Exemplo baseado no código do index.js
         // Adicione outros mapeamentos conhecidos aqui
     };
     

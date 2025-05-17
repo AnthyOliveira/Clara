@@ -3,7 +3,7 @@ const path = require('path');
 const crypto = require('crypto');
 
 /**
- * Script de Migração de Dados da Ravenabot
+ * Script de Migração de Dados da clarabot
  * 
  * Este script migra dados da estrutura antiga para a nova estrutura:
  * - dados.json -> groups.json
@@ -16,10 +16,10 @@ const crypto = require('crypto');
 
 // Configurações
 const OLD_BASE_PATHS = [
-  'C:\\ravenas\\ravenabot1',
-  'C:\\ravenas\\ravenabot2',
-  'C:\\ravenas\\ravenabot3',
-  'C:\\ravenas\\ravenabot4'
+  'C:\\claras\\clarabot1',
+  'C:\\claras\\clarabot2',
+  'C:\\claras\\clarabot3',
+  'C:\\claras\\clarabot4'
 ]; // Caminhos base das instalações antigas (ajuste conforme necessário)
 const NEW_BASE_PATH = './data'; // Caminho base da nova instalação
 

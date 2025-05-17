@@ -536,7 +536,7 @@ class EventHandler {
         }
 
         // Envia uma mensagem de boas-vindas padrão sobre o bot
-        let botInfoMessage = `🦇 Olá, grupo! Eu sou a *ravenabot*, um bot de WhatsApp. Use "${group.prefix}cmd" para ver os comandos disponíveis.`;
+        let botInfoMessage = `🦇 Olá, grupo! Eu sou a *clarabot*, um bot de WhatsApp. Use "${group.prefix}cmd" para ver os comandos disponíveis.`;
       
         try {
           const groupJoinPath = path.join(__dirname, '../data/textos/groupJoin.txt');
@@ -599,7 +599,7 @@ class EventHandler {
             memberCount: chat.participants?.length || 0
           };
           
-          const llmPrompt = `Você é um bot de WhatsApp chamado ravenabot e foi adicionado em um grupo de whatsapp chamado '${groupInfo.name}'${llm_inviterInfo}, este grupo é sobre '${groupInfo.description}' e tem '${groupInfo.memberCount}' participantes. Gere uma mensagem agradecendo a confiança e fazendo de conta que entende do assunto do grupo enviando algo relacionado junto pra se enturmar, seja natural. Não coloque coisas placeholder, pois a mensagem que você retornar, vai ser enviada na íntegra e sem ediçoes.`;
+          const llmPrompt = `Você é um bot de WhatsApp chamado clarabot e foi adicionado em um grupo de whatsapp chamado '${groupInfo.name}'${llm_inviterInfo}, este grupo é sobre '${groupInfo.description}' e tem '${groupInfo.memberCount}' participantes. Gere uma mensagem agradecendo a confiança e fazendo de conta que entende do assunto do grupo enviando algo relacionado junto pra se enturmar, seja natural. Não coloque coisas placeholder, pois a mensagem que você retornar, vai ser enviada na íntegra e sem ediçoes.`;
           
           // Obtém conclusão do LLM sem bloquear
           this.llmService.getCompletion({ prompt: llmPrompt }).then(groupWelcomeMessage => {

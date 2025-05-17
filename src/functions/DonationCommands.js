@@ -21,7 +21,7 @@ async function readDonationHeader() {
     return headerContent;
   } catch (error) {
     logger.warn('Erro ao ler cabeçalho do donate:', error);
-    return '💖 *Ajuda de custos _ravenabot_!* 🐦‍⬛\n\n';
+    return '💖 *Ajuda de custos _clarabot_!* 🐦‍⬛\n\n';
   }
 }
 

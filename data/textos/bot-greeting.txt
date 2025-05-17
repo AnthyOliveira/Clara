@@ -1,4 +1,4 @@
-🦇 Olá, eu sou a *ravenabot*! 🐦‍⬛
+🦇 Olá, eu sou a *clarabot*! 🐦‍⬛
 
 💡 *Como me usar:*
 • Digite ```!cmd``` para ver todos os comandos disponíveis

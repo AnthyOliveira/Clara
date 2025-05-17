@@ -103,7 +103,7 @@ class WhatsAppBotBaileys {
         auth: state,
         printQRInTerminal: true,
         useBaileysLegacyMode: true,
-        // browser: ['RavenaBot', 'Chrome', '10.0'],
+        // browser: ['claraBot', 'Chrome', '10.0'],
         connectTimeoutMs: 60000, 
         defaultQueryTimeoutMs: 60000,
         keepAliveIntervalMs: 25000,
@@ -1313,7 +1313,7 @@ class WhatsAppBotBaileys {
         this.client = makeWASocket({
           auth: state,
           printQRInTerminal: true,
-          // browser: ['RavenaBot', 'Chrome', '10.0'],
+          // browser: ['claraBot', 'Chrome', '10.0'],
           connectTimeoutMs: 60000, 
           defaultQueryTimeoutMs: 60000,
           keepAliveIntervalMs: 25000,

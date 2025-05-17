@@ -130,7 +130,7 @@ class BotAPI {
       // Verifica se os cabeçalhos de autenticação existem
       const authHeader = req.headers.authorization;
       if (!authHeader) {
-        res.set('WWW-Authenticate', 'Basic realm="RavenaBot API"');
+        res.set('WWW-Authenticate', 'Basic realm="claraBot API"');
         return res.status(401).json({
           status: 'error',
           message: 'Autenticação requerida'
@@ -152,7 +152,7 @@ class BotAPI {
       }
       
       // Credenciais inválidas
-      res.set('WWW-Authenticate', 'Basic realm="RavenaBot API"');
+      res.set('WWW-Authenticate', 'Basic realm="claraBot API"');
       return res.status(401).json({
         status: 'error',
         message: 'Credenciais inválidas'

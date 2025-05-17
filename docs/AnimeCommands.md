@@ -37,4 +37,4 @@ Este comando é implementado no arquivo `src/functions/AnimeCommands.js` e utili
 
 ---
 
-*Este documento faz parte da [Documentação de Comandos do RavenaBot AI](README.md#documentação-dos-comandos)*
+*Este documento faz parte da [Documentação de Comandos do claraBot AI](README.md#documentação-dos-comandos)*

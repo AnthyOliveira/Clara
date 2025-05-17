@@ -286,7 +286,7 @@ async function listOnlineStreamers(bot, message, args, group) {
     }, {});
     
     // Constrói a mensagem de resposta
-    let response = `🎮 *Streamers que usam a ravenabot*:\n\n`;
+    let response = `🎮 *Streamers que usam a clarabot*:\n\n`;
     
     // Adiciona streamers da Twitch
     if (streamsByPlatform.twitch && streamsByPlatform.twitch.length > 0) {

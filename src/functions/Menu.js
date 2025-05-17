@@ -216,7 +216,7 @@ async function sendCommandList(bot, message, args, group) {
     const prefix = group && group.prefix ? group.prefix : bot.prefix;
     
     // Constrói mensagem
-    let menuText = "🤖 *Comandos Ravenabot*🐦‍⬛\n";
+    let menuText = "🤖 *Comandos clarabot*🐦‍⬛\n";
     if(!group){
       menuText += `> _PV da *${bot.id}*_\n`;
     } else {

@@ -27,7 +27,7 @@ const whisperPath = process.env.WHISPER;
 
 // Definição dos personagens para TTS
 const ttsCharacters = [
-  {"name": "ravena", "emoji": ["🗣","🦇"], "voice": "ravena_sample.wav"},
+  {"name": "clara", "emoji": ["🗣","🦇"], "voice": "clara_sample.wav"},
   {"name": "mulher", "emoji": "👩", "voice": "female_01.wav"},
   {"name": "carioca", "voice": "female_02.wav"},
   {"name": "carioco", "voice": "male_02.wav"},
@@ -138,7 +138,7 @@ function removeWhatsAppMarkup(text) {
  * @param {string} character - Personagem a ser usado (opcional)
  * @returns {Promise<ReturnMessage|Array<ReturnMessage>>} - ReturnMessage ou array de ReturnMessages
  */
-async function textToSpeech(bot, message, args, group, char = "ravena") {
+async function textToSpeech(bot, message, args, group, char = "clara") {
   try {
     const chatId = message.group || message.author;
       
@@ -576,14 +576,14 @@ const commands = [
   }),
   new Command({
     name: "tts",
-    description: `Converte texto para voz usando personagem 'ravena'`,
+    description: `Converte texto para voz usando personagem 'clara'`,
     category: "tts",
     reactions: {
       trigger: ["🗣️","🦇"],
       before: "⌛️",
       after: "🔊"
     },
-    method: (bot, message, args, group) => textToSpeech(bot, message, args, group, "ravena")
+    method: (bot, message, args, group) => textToSpeech(bot, message, args, group, "clara")
   }),
   new Command({
     name: "tts-mulher",

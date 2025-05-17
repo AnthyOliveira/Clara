@@ -4730,7 +4730,7 @@ async setWelcomeMessage(bot, message, args, group) {
       const welcomeVaribles = [
         { name: "{pessoa}", description: "Nome(s) da(s) pessoa(s) adicionada(s) no grupo" },
         { name: "{tituloGrupo}", description: "Título do grupo no whatsApp" },
-        { name: "{nomeGrupo}", description: "ID do grupo na ravena" }
+        { name: "{nomeGrupo}", description: "ID do grupo na clara" }
       ];
 
       // Constrói a mensagem de resposta

@@ -79,4 +79,4 @@ A chave de API pode ser obtida gratuitamente em [omdbapi.com](http://www.omdbapi
 
 ---
 
-*Este documento faz parte da [Documentação de Comandos do RavenaBot AI](README.md#documentação-dos-comandos)*
+*Este documento faz parte da [Documentação de Comandos do claraBot AI](README.md#documentação-dos-comandos)*

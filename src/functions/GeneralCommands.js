@@ -42,7 +42,7 @@ async function grupaoCommand(bot, message, args, group){
 
   return new ReturnMessage({
     chatId: chatId,
-    content: `Ok! Tentei de adicionar no grupão da ravena. Se não tiver sido adicionado, entre pelo link: ${bot.linkGrupao}`
+    content: `Ok! Tentei de adicionar no grupão da clara. Se não tiver sido adicionado, entre pelo link: ${bot.linkGrupao}`
   });
 
 }
@@ -59,7 +59,7 @@ async function avisosCommand(bot, message, args, group){
 
   return new ReturnMessage({
     chatId: chatId,
-    content: `Ok! Tentei de adicionar no grupo de avisos da ravena. Se não tiver sido adicionado, entre pelo link: ${bot.linkAvisos}`
+    content: `Ok! Tentei de adicionar no grupo de avisos da clara. Se não tiver sido adicionado, entre pelo link: ${bot.linkAvisos}`
   });
 }
 
@@ -79,7 +79,7 @@ async function codigoCommand(bot, message, args, group) {
     logger.warn('Erro ao ler cabeçalho do menu:', error);
     return new ReturnMessage({
       chatId: chatId,
-      content: `🔗 *Github:* https://github.com/moothz/ravena-ai`
+      content: `🔗 *Github:* https://github.com/moothz/clara-ai`
     });
   }
 
@@ -115,7 +115,7 @@ async function conviteCommand(bot, message, args, group) {
 
     new ReturnMessage({
       chatId: chatId,
-      content: `🐦‍⬛ Então você quer a *ravenabot* no seu grupo?
+      content: `🐦‍⬛ Então você quer a *clarabot* no seu grupo?
 Pra começar, me envie o *LINK*, apenas o _LINK_ do seu grupo.
 Se você enviar um convite tradicional, não vai adiantar de nada, pois não consigo aceitar por aqui.
 Após o link, siga as instruções do bot, enviando uma mensagem explicando o motivo de querer o bot no seu grupo.`
@@ -135,7 +135,7 @@ async function diferencasCommand(bot, message, args, group) {
 
   return new ReturnMessage({
     chatId: chatId,
-    content: `Bem vindo à nova *ravena*!
+    content: `Bem vindo à nova *clara*!
 Se tiver dúvidas, entre no *!grupao*
 
 Aqui vai as principais diferenças pra antiga:
@@ -150,15 +150,15 @@ Aqui vai as principais diferenças pra antiga:
 - 
 
 *Novos comandos legais*
-- Pastas: É o _drive da ravena_! Guarde seus arquivos aqui e use comandos pra baixar todos de uma vez. Útil para grupos que precisam toda hora enviar documentos e outras coisas para membros novos.
-- TTS com voz personalizada: Agora sintetizo as vozes local usando o AllSpeak, sendo o default a voz da ravena, mas podendo aprender a voz de outras pessoas também
+- Pastas: É o _drive da clara_! Guarde seus arquivos aqui e use comandos pra baixar todos de uma vez. Útil para grupos que precisam toda hora enviar documentos e outras coisas para membros novos.
+- TTS com voz personalizada: Agora sintetizo as vozes local usando o AllSpeak, sendo o default a voz da clara, mas podendo aprender a voz de outras pessoas também
 - 
 
 *De código:*
-- O código está liberado e qualquer um pode contribuir pra novas funçoes: https://github.com/moothz/ravena-ai
+- O código está liberado e qualquer um pode contribuir pra novas funçoes: https://github.com/moothz/clara-ai
 - Foi 90% escrito por inteligência artificial _(Claude Sonnet 3.7)_
-- A base de dados é compartilhada entre todas as ravenas agora
-- Todas as ravenas rodam no mesmo processo
+- A base de dados é compartilhada entre todas as claras agora
+- Todas as claras rodam no mesmo processo
 `
   });
 }
@@ -428,14 +428,14 @@ const commands = [
 
   new Command({
     name: 'diferenças',
-    description: 'Exibe as diferenças para a ravena antiga',
+    description: 'Exibe as diferenças para a clara antiga',
     category: "geral",
     method: diferencasCommand
   }),
   
   new Command({
     name: 'grupao',
-    description: 'Grupo de interação ravenabot',
+    description: 'Grupo de interação clarabot',
     category: "geral",
     reactions: {
       before: "👨‍👨‍👧‍👦"
@@ -444,7 +444,7 @@ const commands = [
   }),
   new Command({
     name: 'avisos',
-    description: 'Grupo de avisos ravenabot',
+    description: 'Grupo de avisos clarabot',
     category: "geral",
     reactions: {
       before: "📣"
@@ -453,7 +453,7 @@ const commands = [
   }),
   new Command({
     name: 'codigo',
-    description: 'Código da ravenabot',
+    description: 'Código da clarabot',
     category: "geral",
     reactions: {
       before: "💾"
@@ -462,7 +462,7 @@ const commands = [
   }),
   new Command({
     name: 'código',
-    description: 'Código da ravenabot',
+    description: 'Código da clarabot',
     category: "geral",
     hidden: true,
     reactions: {
@@ -472,7 +472,7 @@ const commands = [
   }),
   new Command({
     name: 'convite',
-    description: 'Saiba mas sobre a ravena em grupos',
+    description: 'Saiba mas sobre a clara em grupos',
     category: "geral",
     reactions: {
       before: "📩"

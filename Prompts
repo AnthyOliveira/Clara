@@ -323,8 +323,8 @@ Seems ok, but not response is being sent back. Log the initial prompt and respon
 Small change: removebg should return media as a file, not image
 
 ## Stickers.js
-When creating stickers, set the author to "ravena" and the sticker name to what's after the command, if nothing, the group name
-"!s batata" would create a sticker from the author "ravena" with the title "batata"
+When creating stickers, set the author to "clara" and the sticker name to what's after the command, if nothing, the group name
+"!s batata" would create a sticker from the author "clara" with the title "batata"
 
 
 ----
@@ -703,8 +703,8 @@ Use a pasta da base de dados para armazenar as listas (pasta lists), um arquivo 
 Crie um readme.md bonito explicando tudo que está implementado aqui.
 Mais detalhes para a introdução do README:
 - Imagem centralizada na horizontal (placeholder, me sugira um tamanho que fique bom no github)
-- Titulo: ravenabot-ai
-- Sobre: Novo código da ravena todo desenvolvido utilizando LLM Claude 3.7 Sonnet
+- Titulo: clarabot-ai
+- Sobre: Novo código da clara todo desenvolvido utilizando LLM Claude 3.7 Sonnet
 - Livre para uso, sem garantias
 Sessão logo após a intrudução: TODO-List com checklist, crie e marque como concluído o que já tem, deixe alguns placeholders que irei preencher
 Inclua Instruçoes de instalação como baixar o nodejs  e outros programas.
@@ -1068,7 +1068,7 @@ const { loggerInfo, loggerWarn } = require("./logger");
 var LastFmNode = require('lastfm').LastFmNode;
 
 /*
-Application name 	ravenabot
+Application name 	clarabot
 API key 	62f5658e810b6148fa70c87de866e73f
 Shared secret 	bca8f01839bd4f107edc0670a75e0625
 Registered to 	moothz
@@ -1078,7 +1078,7 @@ Registered to 	moothz
 var lastfm = new LastFmNode({
   api_key: process.env.LASTFM_APIKEY,	// sign-up for a key at http://www.last.fm/api
   secret: process.env.bca8f01839bd4f107edc0670a75e0625,
-  useragent: 'moothz/v0.1 ravenabot' // optional. defaults to lastfm-node.
+  useragent: 'moothz/v0.1 clarabot' // optional. defaults to lastfm-node.
 });
 
 
@@ -1226,7 +1226,7 @@ ALLTALK_API=http://localhost:7852/
 Existe mais de um character.
 Crie um objeto que define eles:
 {
-"ravena": "ravena_sample.wav",
+"clara": "clara_sample.wav",
 "mulher": "female_01.wav",
 "homem": "male_01.wav",
 "clint": "Clint_Eastwood CC3 (enhanced).wav",
@@ -1235,7 +1235,7 @@ Crie um objeto que define eles:
 
 Uso:
 !tts-[character]
-O character padrão é "ravena" (para usar quando usuário informar !tts apenas)
+O character padrão é "clara" (para usar quando usuário informar !tts apenas)
 
 Você pode definir os comandos de personagem usando um for:
 [... value/keys dos characters ...].forEach(effect => {
@@ -1395,7 +1395,7 @@ Nova funcionalidade: Atualiza status do whatsapp com informações da carga
 bot.client.setStatus(string)
 
 Formato:
-{loadEmoji} DD/MM hh:mm | {msgs/h}m/h|!cmd, !info | ravena.moothz.win
+{loadEmoji} DD/MM hh:mm | {msgs/h}m/h|!cmd, !info | clara.moothz.win
 
 [msgs/h]: A carga é medida em mensagens por hora, baseada nos últimos 3 reports
 
@@ -1427,7 +1427,7 @@ Fontes:
 - roleta.json
 - lists.json
 
-As fontes virão de 4 pastas (idRavena) diferentes e devem ser unificadas em uma importação apenas. Caso existam grupos repetidos no cadastro, considerar apenas o primeiro processado.
+As fontes virão de 4 pastas (idclara) diferentes e devem ser unificadas em uma importação apenas. Caso existam grupos repetidos no cadastro, considerar apenas o primeiro processado.
 
 O que gerar:
 - data/groups.json
@@ -1447,7 +1447,7 @@ Como proceder:
 5. Ler o arquivo frases-zap.json e agrupar as frases pela propriedade "canais", que representa quais grupos possuem o comando.
 6. Para cada grupo, descobrir o "numeroGrupo" pelo "nome" (canal) e criar o respectivo data/custom-cmd/[numeroGrupo].json
 7. Copiar os comandos no novo formato para os arquivos de custom-cmd de cada grupo
-8. Todas as respostas em frases-zap que seguem o padrão: img-xxxx, gif-xxxx, vid-xxxx, sfx-xxxx, stickerguif-xxxx, stickerimag-xxxx, nomeArquivoMidia-xxxx são arquivos que devem ser copiados. xxxx é o nome do arquivo, que fica na pasta "C:\ravenas\[idRavena]\media\[tipo]\xxxx"
+8. Todas as respostas em frases-zap que seguem o padrão: img-xxxx, gif-xxxx, vid-xxxx, sfx-xxxx, stickerguif-xxxx, stickerimag-xxxx, nomeArquivoMidia-xxxx são arquivos que devem ser copiados. xxxx é o nome do arquivo, que fica na pasta "C:\claras\[idclara]\media\[tipo]\xxxx"
 A pasta do [tipo] para cada:
 - img => images
 - gif => gifs
@@ -1594,7 +1594,7 @@ O bot deverá tentar trocar a foto apenas se essa propriedade estiver definida.
 ## Novo Comando para o StreamCommands:
 !streamers: Lista, separado por plataforma, todos os streamers online no momento, mostrando algo como
 
-Streamers que usam a *ravenabot*:
+Streamers que usam a *clarabot*:
 
 💜 *Twitch*:
 	- *nomeStreamer*: Jogo _(qtdViewers)_
@@ -1889,7 +1889,7 @@ Use emojis
 🟠 < 15 min
 🔴 > 15 min
 
-No meio do topo da página deve ser exibido um banner "ravenabanner.png"
+No meio do topo da página deve ser exibido um banner "clarabanner.png"
 
 ----
 
@@ -2087,7 +2087,7 @@ Implementar como o processAutoSTT no SpeechCommands, mas no arquivo Stickers.js
 
 ## GreetingMessage
 
-Quando um usuário enviar algo no PV do bot, enviar uma mensagem de saudação, falando que é a ravena bot e que os comandos podem se consultados usando !cmd
+Quando um usuário enviar algo no PV do bot, enviar uma mensagem de saudação, falando que é a clara bot e que os comandos podem se consultados usando !cmd
 
 Gere o arquivo bot-greeting.txt com base nos outros txt enviados (mesmo palavreado, estilo e emojis).
 

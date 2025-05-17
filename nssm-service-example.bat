@@ -1,5 +1,5 @@
-nssm install ravenabot "C:\Program Files\nodejs\node.exe"
-nssm set ravenabot AppDirectory "C:\ravenabot"
-nssm set ravenabot AppParameters index.js
-nssm set ravenabot AppStdout "C:\ravenabot\logs\ravenabot.service.log"
-nssm set ravenabot AppStderr "C:\ravenabot\logs\ravenabot.service.log"
+nssm install clarabot "C:\Program Files\nodejs\node.exe"
+nssm set clarabot AppDirectory "C:\clarabot"
+nssm set clarabot AppParameters index.js
+nssm set clarabot AppStdout "C:\clarabot\logs\clarabot.service.log"
+nssm set clarabot AppStderr "C:\clarabot\logs\clarabot.service.log"

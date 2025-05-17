@@ -9,7 +9,7 @@ O módulo `GeneralCommands.js` implementa funcionalidades básicas e essenciais 
 | `!ping` | Verifica se o bot está online | `!ping` |
 | `!ai` (e aliases) | Faz uma pergunta à IA | `!ai qual é a capital da França?` |
 | `!apelido` | Define ou mostra seu apelido no grupo | `!apelido Mestre dos Memes` |
-| `!diferenças` | Exibe as diferenças entre a ravena nova e antiga | `!diferenças` |
+| `!diferenças` | Exibe as diferenças entre a clara nova e antiga | `!diferenças` |
 | `!grupao` | Adiciona o usuário ao grupo de interação principal | `!grupao` |
 
 ## Detalhes dos comandos
@@ -87,7 +87,7 @@ Este comando permite definir ou visualizar um apelido personalizado no grupo.
 
 ### !diferenças
 
-Este comando exibe informações sobre as principais diferenças entre a versão antiga e a nova da ravena.
+Este comando exibe informações sobre as principais diferenças entre a versão antiga e a nova da clara.
 
 #### Funcionalidades:
 - Explica as mudanças no sistema de comandos
@@ -105,7 +105,7 @@ A resposta inclui:
 Este comando adiciona o usuário ao grupo principal de interação da comunidade.
 
 #### Funcionalidades:
-- Adiciona o usuário ao grupo de interação principal da ravena
+- Adiciona o usuário ao grupo de interação principal da clara
 - Fornece link alternativo caso a adição direta falhe
 
 #### Configuração necessária:
