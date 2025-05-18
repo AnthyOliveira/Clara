@@ -1,4 +1,0 @@
-<<<<<<< HEAD
-A ClaraBot ainda é um projeto em desenvolvimento.
-=======
->>>>>>> 7040c9a (	modified:   .env.example)
