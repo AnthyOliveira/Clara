@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RavenaBot - Painel de Status</title>
+    <link rel="stylesheet" type="text/css" href="styles.css">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="manifest" href="/site.webmanifest">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <img src="ravenabanner.png" alt="Ravena Bot Banner" class="banner">
+            <h1>Painel de Status dos Bots</h1>
+        </header>
+        
+        <div class="status-section">
+            <div class="status-legend">
+                <div class="legend-item">
+                    <span>🟢</span>
+                    <span>Ativo (< 2 min)</span>
+                </div>
+                <div class="legend-item">
+                    <span>🟡</span>
+                    <span>Alerta (< 5 min)</span>
+                </div>
+                <div class="legend-item">
+                    <span>🟠</span>
+                    <span>Atenção (< 15 min)</span>
+                </div>
+                <div class="legend-item">
+                    <span>🔴</span>
+                    <span>Inativo (> 15 min)</span>
+                </div>
+                <div class="legend-item">
+                    <span>⚫</span>
+                    <span>Desconectado</span>
+                </div>
+            </div>
+            
+            <div id="botContainer" class="card-container">
+                <div class="loading-container">
+                    <div class="loader"></div>
+                    <p>Carregando status dos bots...</p>
+                </div>
+            </div>
+            
+            <div id="msgsCounter" class="total-msgs-counter"></div>
+            
+            <p class="last-updated" id="lastUpdated">Última atualização: --</p>
+        </div>
+        
+        <!-- Nova Seção de Análise de Dados -->
+        <div class="analytics-section">
+            <div class="analytics-header">
+                <h2 class="analytics-title">Análise de Dados</h2>
+                <div class="time-filters">
+                    <button class="time-filter active" data-period="today">Hoje</button>
+                    <button class="time-filter" data-period="week">Esta Semana</button>
+                    <button class="time-filter" data-period="month">Este Mês</button>
+                    <button class="time-filter" data-period="year">Ano</button>
+                </div>
+            </div>
+            
+            <div class="bot-filters" id="botFilters">
+                <div class="loading-container">
+                    <div class="loader"></div>
+                    <p>Carregando filtros de bots...</p>
+                </div>
+            </div>
+            
+            <div class="charts-grid">
+                <div class="chart-container" id="dailyMessageChart">
+                    <h3 class="chart-title">Média de Mensagens do Dia</h3>
+                </div>
+                <div class="chart-container" id="weeklyMessageChart">
+                    <h3 class="chart-title">Média de Mensagens da Semana</h3>
+                </div>
+                <div class="chart-container" id="monthlyMessageChart">
+                    <h3 class="chart-title">Média de Mensagens do Mês</h3>
+                </div>
+                <div class="chart-container full-width-chart" id="yearlyMessageChart">
+                    <h3 class="chart-title">Total de Mensagens por Dia do Ano</h3>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>Ravena Bot &copy; 2025 - Painel de Monitoramento</p>
+        </footer>
+    </div>
+    
+    <!-- Modal de Reinicialização -->
+    <div id="restartModal" class="restart-modal">
+        <div class="modal-content">
+            <h2 class="modal-title">Reiniciar Bot <span id="modalBotId"></span></h2>
+            <div class="modal-form">
+                <div>
+                    <label for="reason">Motivo da reinicialização:</label>
+                    <textarea id="reason" placeholder="Informe o motivo da reinicialização"></textarea>
+                </div>
+                <div>
+                    <label for="apiUser">Usuário API:</label>
+                    <input type="text" id="apiUser" placeholder="Usuário">
+                </div>
+                <div>
+                    <label for="apiPassword">Senha API:</label>
+                    <input type="password" id="apiPassword" placeholder="Senha">
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="cancel-button" id="cancelRestart">Cancelar</button>
+                <button class="confirm-button" id="confirmRestart">Reiniciar Bot</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Scripts externos -->
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script src="https://code.highcharts.com/modules/exporting.js"></script>
+    <script src="https://code.highcharts.com/modules/export-data.js"></script>
+    <script src="https://code.highcharts.com/modules/accessibility.js"></script>
+    <script type="text/javascript" src="scripts.js"></script>
+
+</body>
+</html>
