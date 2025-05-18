@@ -4,7 +4,6 @@ const Logger = require('../utils/Logger');
 const Database = require('../utils/Database');
 const NSFWPredict = require('../utils/NSFWPredict');
 const ReturnMessage = require('../models/ReturnMessage');
-const { inicializarGrupo, carregarDadosRoleta, salvarDadosRoleta } = require('../functions/RoletaRussaCommands.js');
 
 /**
  * Manipula comandos de gerenciamento para grupos
@@ -34,14 +33,6 @@ class Management {
         method: 'deleteCustomCommand',
         description: 'Exclui um comando personalizado'
       },
-      'enableCmd': {
-        method: 'enableCustomCommand',
-        description: 'Habilita um comando desabilitado'
-      },
-      'disableCmd': {
-        method: 'disableCustomCommand',
-        description: 'Desabilita um comando'
-      },
       'setPrefixo': {
         method: 'setCustomPrefix',
         description: 'Altera o prefixo de comandos (padrão !)'
@@ -54,13 +45,33 @@ class Management {
         method: 'setFarewellMessage',
         description: 'Mensagem quando alguém sai/é removido'
       },
-      'cmdReact': {
+      'cmd-enable': {
+        method: 'enableCustomCommand',
+        description: 'Habilita um comando desabilitado'
+      },
+      'cmd-disable': {
+        method: 'disableCustomCommand',
+        description: 'Desabilita um comando'
+      },
+      'cmd-react': {
         method: 'setReaction',
         description: 'Reaçao pós-comando (apeas cmds do grupo)'
       },
-      'cmdStartReact': {
+      'cmd-startReact': {
         method: 'setStartReaction',
         description: 'Reaçao pré-comando (apeas cmds do grupo)'
+      },
+      'cmd-setAdm': {
+        method: 'setCmdAdmin',
+        description: 'Define que apenas admins podem usar um comando'
+      },
+      'cmd-setHoras': {
+        method: 'setCmdAllowedHours',
+        description: 'Define horários permitidos para um comando'
+      },
+      'cmd-setDias': {
+        method: 'setCmdAllowedDays',
+        description: 'Define dias permitidos para um comando'
       },
       'autoStt': {
         method: 'toggleAutoStt',
@@ -110,30 +121,6 @@ class Management {
         method: 'pauseGroup',
         description: 'Pausa/retoma a atividade do bot no grupo'
       },
-      'setTempoRoleta': {
-        method: 'definirTempoRoleta',
-        description: 'Define tempo de timeout da roleta russa'
-      },
-      'roleta-reset':{
-        method: 'resetRoletaRanking',
-        description: 'Apaga os dados do ranking atuais da roleta russa'
-      },
-      'pesca-reset': {
-        method: 'resetPescaRanking',
-        description: 'Reseta o ranking do jogo de pesca'
-      },
-      'geo-reset': {
-        method: 'resetGeoguesserRanking',
-        description: 'Reseta o ranking do jogo Geoguesser'
-      },
-      'stop-reset': {
-        method: 'resetStopGameRanking',
-        description: 'Reseta o ranking do jogo Stop/Adedona'
-      },
-      'pinto-reset': {
-        method: 'resetPintoRanking',
-        description: 'Reseta o ranking do jogo Pinto'
-      },
       'interagir': {
         method: 'toggleInteraction',
         description: 'Ativa/desativa interações automáticas do bot'
@@ -157,14 +144,6 @@ class Management {
       'setApelido': { 
         method: 'setUserNicknameAdmin',
         description: 'Define um apelido para um usuário específico' 
-      },
-      'cmd-setHoras': {
-        method: 'setCmdAllowedHours',
-        description: 'Define horários permitidos para um comando'
-      },
-      'cmd-setDias': {
-        method: 'setCmdAllowedDays',
-        description: 'Define dias permitidos para um comando'
       },
       'twitch-canal': {
         method: 'toggleTwitchChannel',
@@ -230,6 +209,10 @@ class Management {
         method: 'toggleKickAI',
         description: 'Ativa/desativa uso de IA para gerar mensagens de notificação'
       },
+      'kick-usarThumbnail': {
+        method: 'toggleKickThumbnail',
+        description: 'Ativa/desativa o envio da thumbnail da stream junto com o texto'
+      },
       'kick-marcar': {
         method: 'toggleKickMentions',
         description: 'Ativa/desativa menção a todos os membros nas notificações de canal do Kick'
@@ -262,6 +245,10 @@ class Management {
         method: 'toggleYoutubeAI',
         description: 'Ativa/desativa uso de IA para gerar mensagens de notificação'
       },
+      'youtube-usarThumbnail': {
+        method: 'toggleYoutubeThumbnail',
+        description: 'Ativa/desativa o envio da thumbnail da stream junto com o texto'
+      },
       'youtube-marcar': {
         method: 'toggleYoutubeMentions',
         description: 'Ativa/desativa menção a todos os membros nas notificações de canal do YouTube'
@@ -269,7 +256,11 @@ class Management {
       'variaveis': {
         method: 'listVariables',
         description: 'Lista todas as variáveis disponíveis para comandos personalizados'
-      }
+      },
+      'painel': {
+        method: 'generatePainelCommand',
+        description: 'Gera um link para gerenciar o bot via web'
+      },
     };
   }
 
@@ -373,9 +364,19 @@ class Management {
 
     let bodyTexto;
     if (!quotedMsg) {
-      if(args.length > 1){
-        bodyTexto = args.slice(1).join(" ");
-        commandTrigger = args[0];
+      if(args.length > 1){ // Tem argumetnos, tenta pegar o body pra incluir quebras de linha
+        if (message.origin && message.origin.body) {
+          // Extrai o texto após o comando
+          const prefixo = group.prefix || '!';
+          commandTrigger = args[0];
+          const comandoCompleto = `${prefixo}g-addCmd ${commandTrigger}`;
+          bodyTexto = message.origin.body.substring(message.origin.body.indexOf(comandoCompleto) + comandoCompleto.length).trim();
+        } else {
+          this.logger.info(`[addCmd] Não consegui pegar o body de mensagem, vou usar os args mesmo.`);
+          bodyTexto = args.slice(1).join(" ");
+          commandTrigger = args[0];
+
+        }
       } else {
         return new ReturnMessage({
           chatId: group.id,
@@ -386,7 +387,10 @@ class Management {
       bodyTexto = quotedMsg.body ?? quotedMsg._data.body;
     }
     
-    
+
+    if(commandTrigger.startsWith(group.prefix)){
+      commandTrigger = commandTrigger.replace(group.prefix, "");
+    }
     
     
     // Obtém o conteúdo da mensagem citada
@@ -443,6 +447,7 @@ class Management {
     const customCommand = {
       startsWith: commandTrigger,
       responses: [responseContent],
+      adminOnly: false,
       sendAllResponses: false,
       mentions: [],
       cooldown: 0,
@@ -497,14 +502,24 @@ class Management {
     
     let commandTrigger = args.join(' ').toLowerCase();
 
-    // Verifica se a mensagem é uma resposta
+
     const quotedMsg = await message.origin.getQuotedMessage();
 
     let bodyTexto;
     if (!quotedMsg) {
-      if(args.length > 1){
-        bodyTexto = args.slice(1).join(" ");
-        commandTrigger = args[0];
+      if(args.length > 1){ // Tem argumetnos, tenta pegar o body pra incluir quebras de linha
+        if (message.origin && message.origin.body) {
+          // Extrai o texto após o comando
+          const prefixo = group.prefix || '!';
+          commandTrigger = args[0];
+          const comandoCompleto = `${prefixo}g-addCmd ${commandTrigger}`;
+          bodyTexto = message.origin.body.substring(message.origin.body.indexOf(comandoCompleto) + comandoCompleto.length).trim();
+        } else {
+          this.logger.info(`[addCmdReply] Não consegui pegar o body de mensagem, vou usar os args mesmo.`);
+          bodyTexto = args.slice(1).join(" ");
+          commandTrigger = args[0];
+
+        }
       } else {
         return new ReturnMessage({
           chatId: group.id,
@@ -670,7 +685,7 @@ class Management {
     if (args.length === 0) {
       return new ReturnMessage({
         chatId: group.id,
-        content: 'Por favor, forneça o comando personalizado a ser habilitado. Exemplo: !g-enableCmd saudação'
+        content: 'Por favor, forneça o comando personalizado a ser habilitado. Exemplo: !g-cmd-enable saudação'
       });
     }
     
@@ -725,7 +740,7 @@ class Management {
     if (args.length === 0) {
       return new ReturnMessage({
         chatId: group.id,
-        content: 'Por favor, forneça o comando personalizado a ser desabilitado. Exemplo: !g-disableCmd saudação'
+        content: 'Por favor, forneça o comando personalizado a ser desabilitado. Exemplo: !g-cmd-disable saudação'
       });
     }
     
@@ -1666,33 +1681,14 @@ async setWelcomeMessage(bot, message, args, group) {
     if (args.length < 2) {
       return new ReturnMessage({
         chatId: group.id,
-        content: 'Por favor, forneça um nome de comando e emoji. Exemplo: !g-setReact sticker 🎯'
+        content: 'Por favor, forneça um nome de comando e emoji. Exemplo: !g-cmd-react sticker 🎯'
       });
     }
     
     const commandName = args[0].toLowerCase();
     const emoji = args[1];
     
-    // Verifica se é um comando fixo
-    const fixedCommand = bot.eventHandler.commandHandler.fixedCommands.getCommand(commandName);
-    if (fixedCommand) {
-      // Atualiza reação do comando fixo
-      if (!fixedCommand.reactions) {
-        fixedCommand.reactions = {
-          before: "⏳",
-          after: emoji,
-          error: "❌"
-        };
-      } else {
-        fixedCommand.reactions.after = emoji;
-      }
-      
-      return new ReturnMessage({
-        chatId: group.id,
-        content: `Definida reação 'depois' de '${commandName}' para ${emoji}`
-      });
-    }
-    
+
     // Verifica se é um comando personalizado
     const customCommands = await this.database.getCustomCommands(group.id);
     const customCommand = customCommands.find(cmd => cmd.startsWith === commandName && !cmd.deleted);
@@ -1748,32 +1744,12 @@ async setWelcomeMessage(bot, message, args, group) {
     if (args.length < 2) {
       return new ReturnMessage({
         chatId: group.id,
-        content: 'Por favor, forneça um nome de comando e emoji. Exemplo: !g-setStartReact sticker 🎯'
+        content: 'Por favor, forneça um nome de comando e emoji. Exemplo: !g-cmd-startReact sticker 🎯'
       });
     }
     
     const commandName = args[0].toLowerCase();
     const emoji = args[1];
-    
-    // Verifica se é um comando fixo
-    const fixedCommand = bot.eventHandler.commandHandler.fixedCommands.getCommand(commandName);
-    if (fixedCommand) {
-      // Atualiza reação do comando fixo
-      if (!fixedCommand.reactions) {
-        fixedCommand.reactions = {
-          before: emoji,
-          after: "✅",
-          error: "❌"
-        };
-      } else {
-        fixedCommand.reactions.before = emoji;
-      }
-      
-      return new ReturnMessage({
-        chatId: group.id,
-        content: `Definida reação 'antes' de '${commandName}' para ${emoji}`
-      });
-    }
     
     // Verifica se é um comando personalizado
     const customCommands = await this.database.getCustomCommands(group.id);
@@ -1951,6 +1927,8 @@ async setWelcomeMessage(bot, message, args, group) {
       });
     }
     
+    args = args.filter(a => !["on", "off"].includes(a.toLowerCase()));
+
     if (args.length === 0) {
       return new ReturnMessage({
         chatId: group.id,
@@ -1958,7 +1936,7 @@ async setWelcomeMessage(bot, message, args, group) {
       });
     }
     
-    const channelName = args[0].toLowerCase();
+    const channelName = args[0].replace("https://www.twitch.tv/", "").toLowerCase();
     
     // Get current channels
     const channels = this.getChannelConfig(group, 'twitch');
@@ -1983,23 +1961,33 @@ async setWelcomeMessage(bot, message, args, group) {
         content: `Canal da Twitch removido: ${channelName}`
       });
     } else {
-      // Add channel with default configuration
-      const newChannel = {
-        channel: channelName,
-        onConfig: this.createDefaultNotificationConfig('twitch', channelName),
-        offConfig: {
-          "media": []
-        },
-        changeTitleOnEvent: true,
-        useThumbnail: true,
-        useAI: false
-      };
-      
-      channels.push(newChannel);
-      await this.database.saveGroup(group);
-      
-      // Subscribe to the channel in StreamMonitor
+      // Check if the channel exists on Twitch before adding
       if (bot.streamMonitor) {
+        const channelExists = await bot.streamMonitor.twitchChannelExists(channelName);
+        
+        if (!channelExists) {
+          return new ReturnMessage({
+            chatId: group.id,
+            content: `❌ Erro: O canal "${channelName}" não existe na Twitch ou não foi possível verificá-lo.`
+          });
+        }
+        
+        // Add channel with default configuration
+        const newChannel = {
+          channel: channelName,
+          onConfig: this.createDefaultNotificationConfig('twitch', channelName),
+          offConfig: {
+            "media": []
+          },
+          changeTitleOnEvent: true,
+          useThumbnail: true,
+          useAI: false
+        };
+        
+        channels.push(newChannel);
+        await this.database.saveGroup(group);
+        
+        // Subscribe to the channel in StreamMonitor
         bot.streamMonitor.subscribe(channelName, 'twitch');
         
         return new ReturnMessage({
@@ -2010,8 +1998,7 @@ async setWelcomeMessage(bot, message, args, group) {
       } else {
         return new ReturnMessage({
           chatId: group.id,
-          content: `Canal da Twitch adicionado: ${channelName}\n\n` +
-            `⚠️ Aviso: O monitoramento de streams não está inicializado no bot. Entre em contato com o administrador.`
+          content: `❌ Erro: O monitoramento de streams não está inicializado no bot.`
         });
       }
     }
@@ -2549,8 +2536,95 @@ async setWelcomeMessage(bot, message, args, group) {
       chatId: group.id,
       content: `O bot agora ${status} junto a thumbnail da stream do canal ${channelName}.\n\n` 
     });
-    
   }
+  async toggleKickThumbnail(bot, message, args, group) {
+    if (!group) {
+      return new ReturnMessage({
+        chatId: message.author,
+        content: 'Este comando só pode ser usado em grupos.'
+      });
+    }
+    
+    // Validate and get channel name
+    const channelName = await this.validateChannelName(bot, message, args, group, 'kick');
+    
+    // If validateChannelName returned a ReturnMessage, return it
+    if (channelName instanceof ReturnMessage) {
+      return channelName;
+    }
+    
+    // Find the channel configuration
+    const channelConfig = this.findChannelConfig(group, 'kick', channelName);
+    
+    if (!channelConfig) {
+      return new ReturnMessage({
+        chatId: group.id,
+        content: `Canal da Kick não configurado: ${channelName}. Use !g-kick-canal ${channelName} para configurar.`
+      });
+    }
+    
+    // Toggle the setting
+    if(!channelConfig.useThumbnail){
+      channelConfig.useThumbnail = true;
+    } else {
+      channelConfig.useThumbnail = false;
+    }
+    
+    await this.database.saveGroup(group);
+    
+    const status = channelConfig.useThumbnail ? 'irá enviar' : 'não irá enviar';
+    
+    
+    return new ReturnMessage({
+      chatId: group.id,
+      content: `O bot agora ${status} junto a thumbnail da stream do canal ${channelName}.\n\n` 
+    });
+  }
+  async toggleYoutubeThumbnail(bot, message, args, group) {
+    if (!group) {
+      return new ReturnMessage({
+        chatId: message.author,
+        content: 'Este comando só pode ser usado em grupos.'
+      });
+    }
+    
+    // Validate and get channel name
+    const channelName = await this.validateChannelName(bot, message, args, group, 'youtube');
+    
+    // If validateChannelName returned a ReturnMessage, return it
+    if (channelName instanceof ReturnMessage) {
+      return channelName;
+    }
+    
+    // Find the channel configuration
+    const channelConfig = this.findChannelConfig(group, 'youtube', channelName);
+    
+    if (!channelConfig) {
+      return new ReturnMessage({
+        chatId: group.id,
+        content: `Canal do Youtube não configurado: ${channelName}. Use !g-youtube-canal ${channelName} para configurar.`
+      });
+    }
+    
+    // Toggle the setting
+    if(!channelConfig.useThumbnail){
+      channelConfig.useThumbnail = true;
+    } else {
+      channelConfig.useThumbnail = false;
+    }
+    
+    await this.database.saveGroup(group);
+    
+    const status = channelConfig.useThumbnail ? 'irá enviar' : 'não irá enviar';
+    
+    
+    return new ReturnMessage({
+      chatId: group.id,
+      content: `O bot agora ${status} junto a thumbnail da stream/video do canal ${channelName}.\n\n` 
+    });
+  }
+
+
   /**
    * Toggles AI generated messages for stream events
    * @param {WhatsAppBot} bot - The bot instance
@@ -3244,8 +3318,9 @@ async setWelcomeMessage(bot, message, args, group) {
       });
     }
     
-    const channelName = args[0];
-    
+    let channelName = args[0].includes("/") ? args[0].split("/").at(-1) : args[0];
+    channelName = channelName.replace("@", "");
+
     // Get current channels
     const channels = this.getChannelConfig(group, 'youtube');
     
@@ -3276,8 +3351,9 @@ async setWelcomeMessage(bot, message, args, group) {
         offConfig: {
           media: []
         },
-        changeTitleOnEvent: true,
-        useAI: false
+        changeTitleOnEvent: false,
+        useAI: false,
+        useThumbnail: true
       };
       
       channels.push(newChannel);
@@ -3839,84 +3915,6 @@ async setWelcomeMessage(bot, message, args, group) {
       return new ReturnMessage({
         chatId: message.group || message.author,
         content: 'Erro ao processar comando. Por favor, tente novamente.'
-      });
-    }
-  }
-
-  /**
-   * Define tempo de timeout da roleta russa (comando de administrador)
-   * @param {WhatsAppBot} bot Instância do bot
-   * @param {Object} message Dados da mensagem
-   * @param {Array} args Argumentos do comando
-   * @param {Object} group Dados do grupo
-   * @returns {Promise<ReturnMessage>} Mensagem de retorno
-   */
-  async definirTempoRoleta(bot, message, args, group) {
-    try {
-      // Verifica se está em um grupo
-      if (!message.group) {
-        return new ReturnMessage({
-          chatId: message.author,
-          content: 'Este comando só pode ser usado em grupos.'
-        });
-      }
-      
-      const groupId = message.group;
-      
-      // Verifica se há argumento de tempo
-      if (args.length === 0 || isNaN(parseInt(args[0]))) {
-        return new ReturnMessage({
-          chatId: groupId,
-          content: 'Por favor, forneça um tempo em segundos. Exemplo: !g-setTempoRoleta 300'
-        });
-      }
-      
-      // Obtém e valida o tempo
-      let segundos = parseInt(args[0]);
-      
-      // Limita o tempo máximo (24hrs)
-      if (segundos > 86400) {
-        segundos = 86400;
-      } else if (segundos < 10) {
-        segundos = 10; // Mínimo de 10 segundos
-      }
-      
-      // Carrega dados da roleta
-      let dados = await carregarDadosRoleta();
-      
-      // Inicializa dados do grupo se necessário
-      dados = inicializarGrupo(dados, groupId);
-      
-      // Atualiza tempo de timeout
-      dados.grupos[groupId].tempoTimeout = segundos;
-      
-      // Salva dados
-      await salvarDadosRoleta(dados);
-      
-      // Formata tempo para exibição
-      const minutos = Math.floor(segundos / 60);
-      const segundosRestantes = segundos % 60;
-      let tempoFormatado = '';
-      
-      if (minutos > 0) {
-        tempoFormatado += `${minutos} minuto(s)`;
-        if (segundosRestantes > 0) {
-          tempoFormatado += ` e ${segundosRestantes} segundo(s)`;
-        }
-      } else {
-        tempoFormatado = `${segundos} segundo(s)`;
-      }
-      
-      return new ReturnMessage({
-        chatId: groupId,
-        content: `⏱️ Tempo de "morte" na roleta russa definido para ${tempoFormatado}.`
-      });
-    } catch (error) {
-      this.logger.error('Erro ao definir tempo de roleta:', error);
-      
-      return new ReturnMessage({
-        chatId: message.group || message.author,
-        content: 'Erro ao definir tempo da roleta russa. Por favor, tente novamente.'
       });
     }
   }
@@ -4867,6 +4865,64 @@ async setWelcomeMessage(bot, message, args, group) {
     return this.setStreamGroupPhoto(bot, message, args, group, 'youtube');
   }
   
+
+  /**
+   * Define horários permitidos para um comando personalizado
+   * @param {WhatsAppBot} bot - Instância do bot
+   * @param {Object} message - Dados da mensagem
+   * @param {Array} args - Argumentos do comando
+   * @param {Object} group - Dados do grupo
+   * @returns {Promise<ReturnMessage>} Mensagem de retorno
+   */
+  async setCmdAdmin(bot, message, args, group) {
+    if (!group) {
+      return new ReturnMessage({
+        chatId: message.author,
+        content: 'Este comando só pode ser usado em grupos.'
+      });
+    }
+    
+    if (args.length < 1) {
+      return new ReturnMessage({
+        chatId: group.id,
+        content: 'Por favor, forneça um nome de comando. Exemplo: !g-cmd-setAdm comando'
+      });
+    }
+    
+    const commandName = args[0].toLowerCase();
+    const emoji = args[1];
+        
+    // Verifica se é um comando personalizado
+    const customCommands = await this.database.getCustomCommands(group.id);
+    const customCommand = customCommands.find(cmd => cmd.startsWith === commandName && !cmd.deleted);
+    
+    if (customCommand) {
+      if (!customCommand.adminOnly) {
+        customCommand.adminOnly = true;
+      } else {
+        customCommand.adminOnly = false;
+      }
+      
+      // Atualiza o comando
+      await this.database.updateCustomCommand(group.id, customCommand);
+      
+      // Limpa cache de comandos para garantir que o comando atualizado seja carregado
+      this.database.clearCache(`commands:${group.id}`);
+
+      // Recarrega comandos
+      await bot.eventHandler.commandHandler.loadCustomCommandsForGroup(group.id);
+      
+      return new ReturnMessage({
+        chatId: group.id,
+        content: `Definido '${commandName}' para ${customCommand.adminOnly ? "apenas administradores" : "sem restrição de adm"}`
+      });
+    }
+    
+    return new ReturnMessage({
+      chatId: group.id,
+      content: `Comando '${commandName}' não encontrado.`
+    });
+  }
   /**
    * Define horários permitidos para um comando personalizado
    * @param {WhatsAppBot} bot - Instância do bot
@@ -5242,182 +5298,6 @@ async setWelcomeMessage(bot, message, args, group) {
     }
   }
 
-  /**
-   * Reseta o ranking da roleta russa para um grupo
-   * @param {WhatsAppBot} bot - Instância do bot
-   * @param {Object} message - Dados da mensagem
-   * @param {Array} args - Argumentos do comando
-   * @param {Object} group - Dados do grupo
-   * @returns {Promise<ReturnMessage>} Mensagem de retorno
-   */
-  async resetRoletaRanking(bot, message, args, group) {
-    try {
-      // Verifica se está em um grupo
-      if (!message.group) {
-        return new ReturnMessage({
-          chatId: message.author,
-          content: 'Este comando só pode ser usado em grupos.'
-        });
-      }
-      
-      const groupId = message.group;
-      
-      // Carrega dados da roleta
-      const { carregarDadosRoleta, salvarDadosRoleta } = require('../functions/RoletaRussaCommands.js');
-      let dados = await carregarDadosRoleta();
-      
-      // Verifica se existem dados para este grupo
-      if (!dados.grupos[groupId]) {
-        return new ReturnMessage({
-          chatId: groupId,
-          content: '🎮 Não há dados de roleta russa para este grupo.'
-        });
-      }
-
-      // Primeiro, vamos mostrar o ranking atual antes de resetar
-      try {
-        // Executa o comando de ranking
-        const rankingCommand = bot.eventHandler.commandHandler.fixedCommands.getCommand('roletaranking');
-        if (rankingCommand) {
-          await rankingCommand.execute(bot, message, [], group);
-        }
-      } catch (rankingError) {
-        this.logger.error('Erro ao mostrar ranking antes do reset:', rankingError);
-      }
-
-      // Aguarda um momento para garantir que o ranking seja exibido
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Armazena uma cópia dos dados para backup
-      const backupData = JSON.stringify(dados.grupos[groupId]);
-      
-      // Reseta os dados do grupo
-      dados.grupos[groupId] = {
-        tempoTimeout: dados.grupos[groupId].tempoTimeout || dados.configuracoes.tempoDefault,
-        jogadores: {},
-        ultimoJogador: null,
-        historicoResets: dados.grupos[groupId].historicoResets || []
-      };
-      
-      // Adiciona dados do reset ao histórico
-      const timestamp = Date.now();
-      dados.grupos[groupId].historicoResets.push({
-        timestamp,
-        dadosAnteriores: backupData
-      });
-      
-      // Mantém apenas os últimos 5 resets no histórico
-      if (dados.grupos[groupId].historicoResets.length > 5) {
-        dados.grupos[groupId].historicoResets = dados.grupos[groupId].historicoResets.slice(-5);
-      }
-      
-      // Salva os dados atualizados
-      await salvarDadosRoleta(dados);
-      
-      return new ReturnMessage({
-        chatId: groupId,
-        content: '🎮 Ranking da roleta russa foi resetado com sucesso para este grupo!\n\nO histórico do ranking anterior foi salvo.'
-      });
-    } catch (error) {
-      this.logger.error('Erro ao resetar ranking da roleta russa:', error);
-      
-      return new ReturnMessage({
-        chatId: message.group || message.author,
-        content: 'Erro ao resetar ranking da roleta russa. Por favor, tente novamente.'
-      });
-    }
-  }
-
-/**
- * Reseta o ranking do jogo de pesca para um grupo
- * @param {WhatsAppBot} bot - Instância do bot
- * @param {Object} message - Dados da mensagem
- * @param {Array} args - Argumentos do comando
- * @param {Object} group - Dados do grupo
- * @returns {Promise<ReturnMessage>} Mensagem de retorno
- */
-async resetPescaRanking(bot, message, args, group) {
-  try {
-    // Verifica se está em um grupo
-    if (!message.group) {
-      return new ReturnMessage({
-        chatId: message.author,
-        content: 'Este comando só pode ser usado em grupos.'
-      });
-    }
-    
-    const groupId = message.group;
-    
-    // Carrega dados de pesca do arquivo JSON
-    const FISHING_DATA_PATH = path.join(__dirname, '../../data/fishing.json');
-    let fishingData;
-    
-    try {
-      const data = await fs.readFile(FISHING_DATA_PATH, 'utf8');
-      fishingData = JSON.parse(data);
-    } catch (error) {
-      return new ReturnMessage({
-        chatId: groupId,
-        content: '🎣 Não há dados de pescaria para resetar.'
-      });
-    }
-
-    // Verifica se há dados do grupo
-    if (!fishingData.groupData || !fishingData.groupData[groupId]) {
-      return new ReturnMessage({
-        chatId: groupId,
-        content: '🎣 Não há dados de pescaria para este grupo específico.'
-      });
-    }
-
-    // Faz backup dos dados antes de resetar
-    const backupData = JSON.stringify(fishingData.groupData[groupId]);
-
-    // Cria estrutura de histórico se não existir
-    if (!fishingData.rankingHistory) {
-      fishingData.rankingHistory = [];
-    }
-
-    // Adiciona backup ao histórico
-    fishingData.rankingHistory.push({
-      type: 'group',
-      groupId,
-      timestamp: Date.now(),
-      data: backupData
-    });
-
-    // Limita histórico a 5 entradas por grupo
-    fishingData.rankingHistory = fishingData.rankingHistory.filter(h => 
-      h.groupId !== groupId || 
-      h.timestamp > Date.now() - (30 * 24 * 60 * 60 * 1000) // mantém últimos 30 dias
-    ).slice(-5);
-
-    // Reseta dados do grupo
-    delete fishingData.groupData[groupId];
-
-    // Reseta dados individuais dos jogadores para este grupo
-    for (const userId in fishingData.fishingData) {
-      if (fishingData.fishingData[userId].groupData) {
-        delete fishingData.fishingData[userId].groupData[groupId];
-      }
-    }
-
-    // Salva os dados atualizados
-    await fs.writeFile(FISHING_DATA_PATH, JSON.stringify(fishingData, null, 2));
-
-    return new ReturnMessage({
-      chatId: groupId,
-      content: `🎣 O ranking de pescaria para este grupo foi resetado com sucesso!\n\nUm backup do ranking anterior foi salvo.`
-    });
-  } catch (error) {
-    this.logger.error('Erro ao resetar ranking de pescaria:', error);
-    
-    return new ReturnMessage({
-      chatId: message.group || message.author,
-      content: 'Erro ao resetar ranking de pescaria. Por favor, tente novamente.'
-    });
-  }
-}
 
   /**
    * Verifica se o usuário é um super admin
@@ -5429,364 +5309,6 @@ async resetPescaRanking(bot, message, args, group) {
     // Por exemplo, verificar contra uma lista de super admins no banco de dados
     const superAdmins = process.env.SUPER_ADMINS ? process.env.SUPER_ADMINS.split(',') : [];
     return superAdmins.includes(userId);
-  }
-
-  /**
-   * Reseta o ranking do jogo Geoguesser para um grupo ou globalmente
-   * @param {WhatsAppBot} bot - Instância do bot
-   * @param {Object} message - Dados da mensagem
-   * @param {Array} args - Argumentos do comando
-   * @param {Object} group - Dados do grupo
-   * @returns {Promise<ReturnMessage>} Mensagem de retorno
-   */
-  async resetGeoguesserRanking(bot, message, args, group) {
-    try {
-      // Verifica se está em um grupo
-      if (!message.group) {
-        return new ReturnMessage({
-          chatId: message.author,
-          content: 'Este comando só pode ser usado em grupos.'
-        });
-      }
-      
-      const groupId = message.group;
-      
-      // Obtém variáveis customizadas
-      const customVariables = await this.database.getCustomVariables();
-      
-      // Verifica se existe ranking de Geoguesser
-      if (!customVariables.geoguesserRanking) {
-        return new ReturnMessage({
-          chatId: groupId,
-          content: '🌍 Não há dados de Geoguesser para resetar.'
-        });
-      }
-
-      // Verifica o tipo de reset
-      const isGlobal = args.length > 0 && args[0].toLowerCase() === 'global';
-      
-      if (isGlobal) {
-        // Verifica se o usuário é um super admin
-        const isSuperAdmin = await this.isSuperAdmin(message.author);
-        if (!isSuperAdmin) {
-          return new ReturnMessage({
-            chatId: groupId,
-            content: '⚠️ Apenas super administradores podem resetar o ranking global de Geoguesser.'
-          });
-        }
-        
-        // Armazena o backup antes de resetar
-        const backupData = JSON.stringify(customVariables.geoguesserRanking);
-        
-        // Registra o backup no histórico
-        if (!customVariables.geoguesserRankingHistory) {
-          customVariables.geoguesserRankingHistory = [];
-        }
-        
-        customVariables.geoguesserRankingHistory.push({
-          type: 'global',
-          timestamp: Date.now(),
-          data: backupData
-        });
-        
-        // Limita o histórico a 5 entradas
-        if (customVariables.geoguesserRankingHistory.length > 5) {
-          customVariables.geoguesserRankingHistory = customVariables.geoguesserRankingHistory.slice(-5);
-        }
-        
-        // Reseta os dados de Geoguesser
-        customVariables.geoguesserRanking = {
-          global: {},
-          groups: {}
-        };
-        
-        // Salva as variáveis atualizadas
-        await this.database.saveCustomVariables(customVariables);
-        
-        return new ReturnMessage({
-          chatId: groupId,
-          content: '🌍 O ranking global de Geoguesser foi resetado com sucesso!\n\nUm backup do ranking anterior foi salvo.'
-        });
-      } else {
-        // Reset apenas para este grupo
-        
-        // Verifica se existem dados para este grupo
-        if (!customVariables.geoguesserRanking.groups || !customVariables.geoguesserRanking.groups[groupId]) {
-          return new ReturnMessage({
-            chatId: groupId,
-            content: '🌍 Não há dados de Geoguesser para este grupo específico.'
-          });
-        }
-        
-        // Armazena o backup antes de resetar
-        const backupData = JSON.stringify(customVariables.geoguesserRanking.groups[groupId]);
-        
-        // Registra o backup no histórico
-        if (!customVariables.geoguesserRankingHistory) {
-          customVariables.geoguesserRankingHistory = [];
-        }
-        
-        customVariables.geoguesserRankingHistory.push({
-          type: 'group',
-          groupId,
-          timestamp: Date.now(),
-          data: backupData
-        });
-        
-        // Limita o histórico a 5 entradas por grupo
-        const groupHistories = customVariables.geoguesserRankingHistory.filter(h => h.type === 'group' && h.groupId === groupId);
-        if (groupHistories.length > 5) {
-          // Remove os históricos mais antigos
-          const toRemove = groupHistories.length - 5;
-          let removed = 0;
-          
-          customVariables.geoguesserRankingHistory = customVariables.geoguesserRankingHistory.filter(h => {
-            if (h.type === 'group' && h.groupId === groupId && removed < toRemove) {
-              removed++;
-              return false;
-            }
-            return true;
-          });
-        }
-        
-        // Reseta os dados de Geoguesser deste grupo
-        customVariables.geoguesserRanking.groups[groupId] = {};
-        
-        // Salva as variáveis atualizadas
-        await this.database.saveCustomVariables(customVariables);
-        
-        return new ReturnMessage({
-          chatId: groupId,
-          content: `🌍 O ranking de Geoguesser para este grupo foi resetado com sucesso!\n\nUm backup do ranking anterior foi salvo.`
-        });
-      }
-    } catch (error) {
-      this.logger.error('Erro ao resetar ranking de Geoguesser:', error);
-      
-      return new ReturnMessage({
-        chatId: message.group || message.author,
-        content: 'Erro ao resetar ranking de Geoguesser. Por favor, tente novamente.'
-      });
-    }
-  }
-
-  /**
-   * Reseta o ranking do jogo Stop/Adedona para um grupo
-   * @param {WhatsAppBot} bot - Instância do bot
-   * @param {Object} message - Dados da mensagem
-   * @param {Array} args - Argumentos do comando
-   * @param {Object} group - Dados do grupo
-   * @returns {Promise<ReturnMessage>} Mensagem de retorno
-   */
-  async resetStopGameRanking(bot, message, args, group) {
-    try {
-      // Verifica se está em um grupo
-      if (!message.group) {
-        return new ReturnMessage({
-          chatId: message.author,
-          content: 'Este comando só pode ser usado em grupos.'
-        });
-      }
-      
-      const groupId = message.group;
-      
-      // Obtém variáveis customizadas
-      const customVariables = await this.database.getCustomVariables();
-      
-      // Verifica se existe ranking de Stop/Adedona para este grupo
-      if (!customVariables.stopGameRanking || 
-          !customVariables.stopGameRanking.groups || 
-          !customVariables.stopGameRanking.groups[groupId]) {
-        return new ReturnMessage({
-          chatId: groupId,
-          content: '🛑 Não há dados do jogo Stop/Adedona para resetar neste grupo.'
-        });
-      }
-      
-      // Armazena o backup antes de resetar
-      const backupData = JSON.stringify(customVariables.stopGameRanking.groups[groupId]);
-      
-      // Registra o backup no histórico
-      if (!customVariables.stopGameRankingHistory) {
-        customVariables.stopGameRankingHistory = [];
-      }
-      
-      customVariables.stopGameRankingHistory.push({
-        groupId,
-        timestamp: Date.now(),
-        data: backupData,
-        performedBy: message.author,
-        performedByName: message.authorName || "Admin"
-      });
-      
-      // Limita o histórico a 5 entradas por grupo
-      const groupHistories = customVariables.stopGameRankingHistory.filter(h => h.groupId === groupId);
-      if (groupHistories.length > 5) {
-        // Remove os históricos mais antigos
-        const toRemove = groupHistories.length - 5;
-        let removed = 0;
-        
-        customVariables.stopGameRankingHistory = customVariables.stopGameRankingHistory.filter(h => {
-          if (h.groupId === groupId && removed < toRemove) {
-            removed++;
-            return false;
-          }
-          return true;
-        });
-      }
-      
-      // Reseta os dados do Stop/Adedona deste grupo
-      customVariables.stopGameRanking.groups[groupId] = {};
-      
-      // Salva as variáveis atualizadas
-      await this.database.saveCustomVariables(customVariables);
-      
-      return new ReturnMessage({
-        chatId: groupId,
-        content: `🛑 O ranking do jogo Stop/Adedona para este grupo foi resetado com sucesso!\n\nUm backup do ranking anterior foi salvo.`
-      });
-    } catch (error) {
-      this.logger.error('Erro ao resetar ranking do jogo Stop/Adedona:', error);
-      
-      return new ReturnMessage({
-        chatId: message.group || message.author,
-        content: 'Erro ao resetar ranking do jogo Stop/Adedona. Por favor, tente novamente.'
-      });
-    }
-  }
-
-
-  /**
-   * Reseta o ranking do jogo Pinto para um grupo
-   * @param {WhatsAppBot} bot - Instância do bot
-   * @param {Object} message - Dados da mensagem
-   * @param {Array} args - Argumentos do comando
-   * @param {Object} group - Dados do grupo
-   * @returns {Promise<ReturnMessage>} Mensagem de retorno
-   */
-  async resetPintoRanking(bot, message, args, group) {
-    try {
-      // Verifica se está em um grupo
-      if (!message.group) {
-        return new ReturnMessage({
-          chatId: message.author,
-          content: 'Este comando só pode ser usado em grupos.'
-        });
-      }
-      
-      const groupId = message.group;
-      
-      // Obtém variáveis customizadas
-      const customVariables = await this.database.getCustomVariables();
-      
-      // Verifica se existe ranking do jogo para este grupo
-      if (!customVariables.pintoGame || 
-          !customVariables.pintoGame.groups || 
-          !customVariables.pintoGame.groups[groupId]) {
-        return new ReturnMessage({
-          chatId: groupId,
-          content: '🍆 Não há dados do jogo para resetar neste grupo.'
-        });
-      }
-
-      // Verifica o tipo de reset (completo ou apenas cooldowns)
-      const resetType = args.length > 0 ? args[0].toLowerCase() : 'full';
-      
-      if (resetType === 'cooldown' || resetType === 'cooldowns') {
-        // Reset apenas dos cooldowns para este grupo
-        const playerCooldowns = {};
-        
-        // Salva o histórico de reset
-        if (!customVariables.pintoGameResetHistory) {
-          customVariables.pintoGameResetHistory = [];
-        }
-        
-        customVariables.pintoGameResetHistory.push({
-          type: 'cooldowns',
-          groupId,
-          timestamp: Date.now(),
-          performedBy: message.author,
-          performedByName: message.authorName || "Admin"
-        });
-        
-        // Limita o histórico a 5 entradas por grupo
-        const groupHistories = customVariables.pintoGameResetHistory.filter(h => h.groupId === groupId);
-        if (groupHistories.length > 5) {
-          // Remove os históricos mais antigos
-          const toRemove = groupHistories.length - 5;
-          let removed = 0;
-          
-          customVariables.pintoGameResetHistory = customVariables.pintoGameResetHistory.filter(h => {
-            if (h.groupId === groupId && removed < toRemove) {
-              removed++;
-              return false;
-            }
-            return true;
-          });
-        }
-        
-        // Salva as variáveis atualizadas
-        await this.database.saveCustomVariables(customVariables);
-        
-        return new ReturnMessage({
-          chatId: groupId,
-          content: '🍆 Os cooldowns do jogo foram resetados para este grupo! Todos os jogadores podem jogar novamente imediatamente.'
-        });
-      } else {
-        // Reset completo do ranking deste grupo
-        
-        // Armazena o backup antes de resetar
-        const backupData = JSON.stringify(customVariables.pintoGame.groups[groupId]);
-        
-        // Registra o backup no histórico
-        if (!customVariables.pintoGameResetHistory) {
-          customVariables.pintoGameResetHistory = [];
-        }
-        
-        customVariables.pintoGameResetHistory.push({
-          type: 'full',
-          groupId,
-          timestamp: Date.now(),
-          data: backupData,
-          performedBy: message.author,
-          performedByName: message.authorName || "Admin"
-        });
-        
-        // Limita o histórico a 5 entradas por grupo
-        const groupHistories = customVariables.pintoGameResetHistory.filter(h => h.groupId === groupId);
-        if (groupHistories.length > 5) {
-          // Remove os históricos mais antigos
-          const toRemove = groupHistories.length - 5;
-          let removed = 0;
-          
-          customVariables.pintoGameResetHistory = customVariables.pintoGameResetHistory.filter(h => {
-            if (h.groupId === groupId && removed < toRemove) {
-              removed++;
-              return false;
-            }
-            return true;
-          });
-        }
-        
-        // Reseta os dados do jogo para este grupo
-        customVariables.pintoGame.groups[groupId] = {};
-        
-        // Salva as variáveis atualizadas
-        await this.database.saveCustomVariables(customVariables);
-        
-        return new ReturnMessage({
-          chatId: groupId,
-          content: '🍆 O ranking do jogo para este grupo foi completamente resetado!\n\nUm backup do ranking anterior foi salvo.'
-        });
-      }
-    } catch (error) {
-      this.logger.error('Erro ao resetar ranking do jogo Pinto:', error);
-      
-      return new ReturnMessage({
-        chatId: message.group || message.author,
-        content: 'Erro ao resetar ranking do jogo. Por favor, tente novamente.'
-      });
-    }
   }
 
   /**
@@ -5856,6 +5378,72 @@ async resetPescaRanking(bot, message, args, group) {
   async toggleYoutubeMentions(bot, message, args, group) {
     return this.toggleStreamMentions(bot, message, args, group, 'youtube');
   }
+
+  async generatePainelCommand(bot, message, args, group) {
+    // Generate token  
+    const token = this.generateRandomToken(32);  
+    const now = new Date();  
+    const expirationMinutes = parseInt(process.env.MANAGEMENT_TOKEN_DURATION || "30");  
+    const expiration = new Date(now.getTime() + expirationMinutes * 60000);  
+      
+    // Format for display  
+    const formattedExpiration = expiration.toLocaleDateString('pt-BR', {  
+        day: '2-digit', month: '2-digit', year: 'numeric',  
+        hour: '2-digit', minute: '2-digit'  
+    });  
+  
+
+    // Save token data  
+    const webManagementData = {  
+        token,  
+        requestNumber: message.author,  
+        authorName: message.authorName || "Unknown",  
+        groupName: group.name,  
+        groupId: group.id,  
+        createdAt: now.toISOString(),  
+        expiresAt: expiration.toISOString()  
+    };  
+  
+    await this.saveWebManagementToken(webManagementData);  
+    const managementLink = `${process.env.BOT_DOMAIN}/manage/${token}`;  
+  
+    return new ReturnMessage({   
+        chatId: message.author,
+        content: `Link para gerenciamento do grupo criado com sucesso!\n\nAcesse: ${managementLink}\n\nEste link é válido até ${formattedExpiration}.`   
+    });  
+  }  
+  
+  generateRandomToken(length) {  
+      const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';  
+      let result = '';  
+      for (let i = 0; i < length; i++) {  
+          result += characters.charAt(Math.floor(Math.random() * characters.length));  
+      }  
+      return result;  
+  }  
+  
+  async saveWebManagementToken(tokenData) {  
+      const fs = require('fs').promises;  
+      const path = require('path');  
+        
+      const dbPath = path.join(this.database.databasePath, 'webmanagement.json');  
+        
+      // Create directory if needed  
+      await fs.mkdir(path.dirname(dbPath), { recursive: true }).catch(() => {});  
+        
+      // Read existing data or create new  
+      let webManagement = [];  
+      try {  
+          const data = await fs.readFile(dbPath, 'utf8');  
+          webManagement = JSON.parse(data);  
+      } catch (error) {  
+          // File doesn't exist, start with empty array  
+      }  
+        
+      webManagement.push(tokenData);  
+      await fs.writeFile(dbPath, JSON.stringify(webManagement, null, 2), 'utf8');  
+  }  
+    
 }
 
 module.exports = Management;

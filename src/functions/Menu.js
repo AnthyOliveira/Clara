@@ -57,7 +57,7 @@ function groupCommandsByCategory(commands) {
     categories[category].push(cmd);
   }
   
-  console.log(Object.keys(categories));
+  //console.log(Object.keys(categories));
   return categories;
 }
 
@@ -505,6 +505,28 @@ const commands = [
     name: 'menu',
     category: "geral",
     group: "menu",
+    description: 'Mostra todos os comandos disponíveis',
+    method: async (bot, message, args, group) => {
+      return await sendCommandList(bot, message, args, group);
+    }
+  }),
+
+
+  new Command({
+    name: 'ajuda',
+    category: "geral",
+    group: "menu",
+    hidden: true,
+    description: 'Mostra todos os comandos disponíveis',
+    method: async (bot, message, args, group) => {
+      return await sendCommandList(bot, message, args, group);
+    }
+  }),
+  new Command({
+    name: 'info',
+    category: "geral",
+    group: "menu",
+    hidden: true,
     description: 'Mostra todos os comandos disponíveis',
     method: async (bot, message, args, group) => {
       return await sendCommandList(bot, message, args, group);

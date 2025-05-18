@@ -24,6 +24,7 @@ class SuperAdmin {
     
     // Mapeamento de comando para método
     this.commandMap = {
+      'testeMsg': {'method': 'testeMsg', 'description': 'Testar Retorno msg'},
       'joinGrupo': {'method': 'joinGroup', 'description': 'Entra em um grupo via link de convite'},
       'addDonateNumero': {'method': 'addDonorNumber', 'description': 'Adiciona número de um doador'},
       'addDonateValor': {'method': 'updateDonationAmount', 'description': 'Atualiza valor de doação'},
@@ -64,6 +65,37 @@ class SuperAdmin {
     return this.adminUtils.isSuperAdmin(userId);
   }
 
+  async testeMsg(bot, message, args) {
+    try{
+      const resMsgValida = await bot.sendReturnMessages(new ReturnMessage({
+        chatId: bot.grupoLogs,
+        content: `Essa tem que chegar`
+      }));
+
+      const resMsgInvalida = await bot.sendReturnMessages(new ReturnMessage({
+        chatId: "120363046150405528@g.us",
+        content: `Essa tem que chegar`
+      }));
+
+      this.logger.debug(`[testeMsg] resMsgValida => `,resMsgValida[0]);
+      this.logger.debug(`[testeMsg] resMsgInvalida => `, resMsgInvalida[0]);
+
+      const infoResMsgValida = await resMsgValida[0].getInfo();
+      const infoResMsgInvalida = await resMsgInvalida[0].getInfo();
+
+      this.logger.debug(`[testeMsg] INFOresMsgValida => `,infoResMsgValida);
+      this.logger.debug(`[testeMsg] INFOresMsgInvalida => `, infoResMsgInvalida);
+
+
+    } catch (error) {
+      this.logger.error('Erro no comando testeMsg:', error);
+      
+      return new ReturnMessage({
+        chatId: message.group || message.author,
+        content: '❌ Erro ao processar comando.'
+      });
+    }
+  }
   /**
    * Entra em um grupo via link de convite
    * @param {WhatsAppBot} bot - Instância do bot
@@ -146,6 +178,19 @@ class SuperAdmin {
     }
   }
 
+  formatPhoneNumber(phone) {
+    // Ensure only digits
+    const digits = phone.replace(/\D/g, '');
+
+    // Match and format
+    const match = digits.match(/^(\d{2})(\d{2})(\d{5})(\d{4})$/);
+    if (!match) return 'Invalid number';
+
+    const [, country, area, part1, part2] = match;
+    return `+${country} (${area}) ${part1}-${part2}`;
+  }
+
+
   /**
    * Adiciona ou atualiza o número de WhatsApp de um doador
    * @param {WhatsAppBot} bot - Instância do bot
@@ -187,10 +232,25 @@ class SuperAdmin {
       const success = await this.database.updateDonorNumber(donorName, numero);
       
       if (success) {
-        return new ReturnMessage({
-          chatId: chatId,
-          content: `✅ Número ${numero} adicionado com sucesso ao doador ${donorName}`
-        });
+        // Pega contato do doador e envia junto pra poder add
+        const cttDonate = await bot.createContact(numero);
+
+        if(!cttDonate){
+          cttDonate = `${donorName} apoiador ravenabot`;
+        }
+        
+        this.logger.debug("[cttDonate]", cttDonate);
+
+        return [
+          new ReturnMessage({
+            chatId: chatId,
+            content: `✅ Número ${numero} adicionado com sucesso ao doador ${donorName}`
+          }),
+          new ReturnMessage({
+            chatId: chatId,
+            content: cttDonate
+          })
+        ];
       } else {
         return new ReturnMessage({
           chatId: chatId,

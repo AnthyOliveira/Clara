@@ -722,8 +722,6 @@ class Database {
         this.logger.debug(`[saveGroup] Novo grupo adicionado ao array`);
       }
       
-      // Atualiza cache com uma cópia profunda para evitar referências
-      this.cache.groups = JSON.parse(JSON.stringify(groups));
       
       // Marca como modificado
       this.dirtyFlags.groups = true;
@@ -1022,9 +1020,11 @@ class Database {
       // Verifica se o doador já existe
       const existingIndex = donations.findIndex(d => d.nome.toLowerCase() === name.toLowerCase());
       
+      let donationTotal;
       if (existingIndex !== -1) {
         // Atualiza doação existente
         donations[existingIndex].valor += amount;
+        donationTotal = donations[existingIndex].valor;
         if (numero) {
           donations[existingIndex].numero = numero;
         }
@@ -1035,6 +1035,7 @@ class Database {
           valor: amount,
           numero
         });
+        donationTotal = 0;
       }
       
       // Atualiza cache
@@ -1043,7 +1044,7 @@ class Database {
       // Marca como modificado
       this.dirtyFlags.donations = true;
       
-      return true;
+      return donationTotal;
     } catch (error) {
       this.logger.error('Erro ao adicionar doação:', error);
       return false;
@@ -1097,15 +1098,24 @@ class Database {
       const donations = await this.getDonations();
       
       // Encontra doador
-      const donor = donations.find(d => d.nome.toLowerCase() === name.toLowerCase());
+      let donor = donations.find(d => d.nome.toLowerCase() === name.toLowerCase());
       
       if (!donor) {
-        this.logger.warn(`Doador "${name}" não encontrado`);
-        return false;
+        this.logger.warn(`Doador "${name}" não encontrado, criando...`);
+        donor = {
+          nome: name,
+          valor: amount
+        };
+        donations.push(donor);
+      } else {
+        // Atualiza valor
+        donor.valor += amount;
       }
-      
-      // Atualiza valor
-      donor.valor += amount;
+
+      if(donor.valor == 0){
+        donations = donations.filter(d => d.nome !== name);
+        this.logger.warn(`Doador "${name}" foi removido da lista.`);
+      }
       
       // Atualiza cache
       this.cache.donations = donations;

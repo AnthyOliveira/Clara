@@ -25,6 +25,10 @@ class InviteSystem {
     this.pendingRequests = new Map(); // Mapa de autor -> { inviteLink, timeout }
   }
 
+  rndString(){
+    return (Math.random() + 1).toString(36).substring(7);
+  }
+
   /**
    * Processa uma mensagem privada que pode conter um link de convite
    * @param {Object} message - O objeto da mensagem
@@ -54,10 +58,11 @@ class InviteSystem {
         this.pendingRequests.delete(message.author);
       }
       
+      const invitesPrePath = path.join(this.database.databasePath, 'textos', 'invites_pre.txt');
+      const preConvite = await fs.readFile(invitesPrePath, 'utf8');
+
       // Pergunta o motivo para adicionar o bot
-      await this.bot.sendMessage(message.author, 
-        "Obrigado pelo convite! Por favor, me diga por que você quer me adicionar a este grupo. " +
-        "Vou esperar sua explicação por 5 minutos antes de processar este convite.");
+      await this.bot.sendMessage(message.author, `${preConvite}\n\n${this.rndString()}`);
       
       // Define um timeout para tratar o convite mesmo se o usuário não responder
       const timeoutId = setTimeout(() => {
@@ -152,7 +157,7 @@ class InviteSystem {
       const invitesPosPath = path.join(this.database.databasePath, 'textos', 'invites_pos.txt');
       const posConvite = await fs.readFile(invitesPosPath, 'utf8');
 
-      await this.bot.sendMessage(authorId, "Obrigado! Seu convite foi recebido e será analisado.\n"+posConvite);
+      await this.bot.sendMessage(authorId, "Seu convite foi recebido e será analisado.\n"+posConvite);
       
       // Envia notificações para o grupoInvites se configurado
       if (this.bot.grupoInvites) {
@@ -160,43 +165,78 @@ class InviteSystem {
           const inviteInfo = await this.bot.client.getInviteInfo(inviteCode);
           console.log(inviteInfo);
 
-          // Envia primeira mensagem com informações do usuário e motivo
-          const infoMessage = 
-            `📩 *Nova Solicitação de Convite de Grupo*\n\n` +
-            `🔗 *Link*: chat.whatsapp.com/${inviteCode}\n`+
-            `👤 *De:* ${userName} (${authorId})\n\n` +
-            `💬 *Motivo:*\n${reason}`;
+          // Verifica se o autor está na lista de doadores
+          let isDonator = false;
+          let infoMessage = "";
+          let donateValue = 0;
+          
+          try {
+            // Obtém todas as doações
+            const donations = await this.database.getDonations();
+            
+            if (donations && donations.length > 0) {
+              // Remove caracteres especiais e espaços do número do autor para comparação
+              const cleanAuthorId = authorId.replace(/[^0-9]/g, "");
+              
+              // Verifica se o autor está na lista de doadores
+              isDonator = donations.some(donation => {
+                // Se o doador tem um número de telefone
+                if (donation.numero) {
+                  // Remove caracteres especiais e espaços do número do doador
+                  const cleanDonorNumber = donation.numero.replace(/[^0-9]/g, "");
+                  //this.logger.debug(`[donate-invite] ${cleanDonorNumber} vs ${cleanAuthorId} =  ${cleanDonorNumber.includes(cleanAuthorId)} || ${ cleanAuthorId.includes(cleanDonorNumber)}`);
+                  if(cleanDonorNumber.length > 10){
+                    if(cleanDonorNumber.includes(cleanAuthorId) || cleanAuthorId.includes(cleanDonorNumber)){
+                      donateValue = donation.valor;
+                      return true;
+                    }
+                  }
+                }
+                return false;
+              });
+            }
+          } catch (donationError) {
+            this.logger.error('Erro ao verificar se o autor é doador:', donationError);
+          }
+          
+          // Constrói a mensagem de informações, adicionando emojis de dinheiro se for doador
+          if (isDonator) {
+            infoMessage = 
+              `💸💸 R$${donateValue} 💸💸\n` +
+              `📩 *Nova Solicitação de Convite de Grupo*\n\n` +
+              `🔗 *Link*: chat.whatsapp.com/${inviteCode}\n`+
+              `👤 *De:* ${userName} (${authorId.split("@")[0]}) 💰\n\n` +
+              `💬 *Motivo:*\n${reason}\n` +
+              `💸💸${this.rndString()}💸💸`;
+          } else {
+            infoMessage = 
+              `📩 *Nova Solicitação de Convite de Grupo*\n\n` +
+              `🔗 *Link*: chat.whatsapp.com/${inviteCode}\n`+
+              `👤 *De:* ${userName} (${authorId.split("@")[0]})\n\n` +
+              `💬 *Motivo:*\n${reason}\n\n${this.rndString()}`;
+          }
           
           await this.bot.sendMessage(this.bot.grupoInvites, infoMessage);
           
-          // Envia segunda mensagm com comando para aceitar
-          const commandMessage =  `!sa-joinGrupo ${inviteCode} ${authorId} ${userName}`;
+          // Envia segunda mensagem com comando para aceitar
+          const commandMessage = `!sa-joinGrupo ${inviteCode} ${authorId} ${userName}`;
           
           await this.bot.sendMessage(this.bot.grupoInvites, commandMessage);
         } catch (error) {
           this.logger.error('Erro ao enviar notificação de convite para grupoInvites:', error);
-          
-          // Tenta notificar o usuário sobre o erro
-          try {
-            await this.bot.sendMessage(authorId, 
-              "Houve um erro ao encaminhar seu convite. Por favor, tente novamente mais tarde ou entre em contato com o administrador do bot.");
-          } catch (notifyError) {
-            this.logger.error('Erro ao enviar notificação de erro para o usuário:', notifyError);
-          }
+    
         }
       } else {
         this.logger.warn('Nenhum grupoInvites configurado, o convite não será encaminhado');
         
         // Notifica o usuário
-        await this.bot.sendMessage(authorId, 
-          "O bot não está configurado corretamente para lidar com convites no momento. " +
-          "Por favor, tente novamente mais tarde ou entre em contato com o administrador do bot.");
+        //await this.bot.sendMessage(authorId, "Este bot não recebe convites.");
       }
     } catch (error) {
       this.logger.error('Erro ao tratar solicitação de convite:', error);
     }
   }
-  
+    
   /**
    * Limpa recursos
    */

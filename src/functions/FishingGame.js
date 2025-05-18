@@ -15,7 +15,7 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 // Constantes do jogo
 const MAX_FISH_PER_USER = 10;
 const MIN_FISH_WEIGHT = 1;
-const MAX_FISH_WEIGHT = 100; // Aumentado para 100kg
+const MAX_FISH_WEIGHT = 110; // Aumentado para 100kg
 const DIFFICULTY_THRESHOLD = 60; // Peso a partir do qual a dificuldade aumenta
 const FISHING_COOLDOWN = 5;
 const MAX_BAITS = 5; // Máximo de iscas reduzido para 5
@@ -49,7 +49,15 @@ const TRASH_ITEMS = [
   { name: "Garrafa vazia", emoji: "🍾" },
   { name: "Chapéu de pirata", emoji: "👒" },
   { name: "Celular quebrado", emoji: "📱" },
-  { name: "Relógio parado", emoji: "⌚" }
+  { name: "Relógio parado", emoji: "⌚" },
+  { name: "Bebê Reborn", emoji: "👶" },
+  { name: "Faca Velha", emoji: "🔪" },
+  { name: "Tesoura Enferrujada", emoji: "✂" },
+  { name: "Cadeado Sem Chave", emoji: "🔒" },
+  { name: "Botão de salvar?", emoji: "💾" },
+  { name: "Hétero", emoji: "🔝" },
+  { name: "Microscópio Sujo", emoji: "🔬" },
+  { name: "Extintor Velho", emoji: "🧯" }
 ];
 
 // Upgrades para pesca
@@ -64,6 +72,7 @@ const UPGRADES = [
 // Downgrades para pesca
 const DOWNGRADES = [
   { name: "Mina Aquática", chance: 0.0001, emoji: "💣", effect: "clear_inventory" },
+  { name: "Vela Acesa do 𝒸𝒶𝓅𝒾𝓇𝑜𝓉𝑜", chance: 0.01, emoji: "🕯", effect: "weight_loss", value: -0.3, duration: 3 },
   { name: "Tartaruga Gulosa", chance: 0.01, emoji: "🐢", effect: "remove_baits", minValue: 1, maxValue: 3 }
 ];
 
@@ -250,11 +259,11 @@ process.on('exit', () => {
  * @param {boolean} isMultiCatch - Se é uma pescaria múltipla (rede)
  * @returns {Object} Peixe sorteado com peso
  */
-function getRandomFish(fishArray, isMultiCatch = false) {
+async function getRandomFish(fishArray, isMultiCatch = false) {
   // Verifica se o array tem peixes
   if (!fishArray || !Array.isArray(fishArray) || fishArray.length === 0) {
-    // Lista de peixes padrão caso não tenha
-    fishArray = ["Aba-aba","Abrotea","Acará","Acari","Agulha","Anchova","Arenque","Arraia","Aruanã","Atum","Bacalhau","Badejo","Bagre","Baiacu","Barbo","Barracuda","Betta","Betara","Bicuda","Bótia","Black Bass","Bonito","Bota-velha","Budião","Baiacu-de-espinhos","Cachara","Cação","Caranha","Carapau","Carapeba","Tubarão","Carapicu","Cascudo","Cachorra","Clarias","Candiru","Carpa","Cavala","Cavalinha","Cavalo-marinho","Cherne","Celacanto","Ciliares","Cirurgião-patela","Congro","Corvina","Curimã","Curimbatá","Dunkerocampus dactyliophorus","Dojô","Dourada","Dourado","Enguia","Espadarte","Estriatos","Esturjão","Enchova","Frade-de-rabo-de-andorinha","Frade-vermelho","Garoupa","Guarajuba","Guaru","Hadoque","Jacundá","Jamanta","Jaú","Kipper","Lambari","Lampreia","Linguado","Limpa-vidro","Mandi","Manjuba","Marlim-branco","Martens-belo","Martens-do-mar","Martens-roxo","Matrinxã","Merluza","Mero","Miraguaia","Mapará","Moreia","Muçum","Mugil cephalus","Namorado","Neon","Neymar-cirurgião","Olhete","Olho-de-boi","Oscar","Pacu","Pampo","Papa-terra","Parati","Patinga","Pargo","Paru","Pavlaki Branco","Pavlaki-da-areia","Peixe-anjo","Peixe-agulha","Peixe-aranha","Peixe-arlequim","Peixe-bala","Peixe-borboleta","Peixe-bruxa","Peixe-cabra","Peixe-carvão","Peixe-cão","Peixe-cego-das-cavernas","Peixe-cirurgião","Peixe-cofre","Peixe-corda","Peixe-dentado","Peixe-dourado","Peixe-elefante","Peixe-escorpião","Peixe-espada","Peixe-esparadrapo","Peixe-faca","Peixe-farol","Peixe-folha","Peixe-frade","Peixe-galo","Peixe-gatilho","Peixe-gato","Peixe-gelo","Peixe-imperador","Peixe-lanterna","Peixe-leão","Peixe-lua","Peixe-machado","Peixe-mandarim","Peixe-martelo","Peixe-médico","Peixe-morcego","Peixe-mosquito","Peixe-nuvem","Peixe-palhaço","Peixe-palmito","Peixe-papagaio","Peixe-pedra","Peixe-pescador","Peixe-piloto","Peixe-porco","Peixe-rato","Peixe-rei","Peixe-remo","Peixe-royal-gramma","Peixe-sapo","Peixe-serra","Peixe-sol","Peixe-soldado","Peixe-tigre","Peixe-tripé","Peixe-trombeta","Peixe-unicórnio","Peixe-ventosa","Peixe-vermelho","Peixe-víbora","Peixe-voador","Peixe-zebra","Perca","Pescada","Piaba","Piapara","Piau","Pintado","Piracanjuba","Piraíba","Pirambóia","Piranha","Piraputanga","Pirarara","Pirarucu","Piratinga","Poraquê","Porquinho","Prejereba","Quimera","Raia","Rêmora","Robalo","Rodóstomo","Saicanga","Sarda","Sardinha","Sargocentron diadema","Salmão","Solha","Surubi","Tabarana","Tainha","Tambacu","Tambaqui","Tamboril","Tamuatá","Tilápia","Traíra","Tricolor","Truta","Tubarana","Tubarão","Tucunaré","Ubarana","Ubeba","Xaréu","Zigão-preto"];
+    const customVariables = await database.getCustomVariables();
+    fishArray = customVariables.peixes ?? ["Lambari", "Traira"];
   }
   
   // Se for pescaria múltipla, não permite peixes raros
@@ -457,6 +466,7 @@ function applyItemEffect(userData, item) {
   
   // Inicializa propriedades de buff se não existirem
   if (!userData.buffs) userData.buffs = [];
+  if (!userData.debuffs) userData.debuffs = [];
   
   switch (item.type) {
     case 'trash':
@@ -492,7 +502,7 @@ function applyItemEffect(userData, item) {
           break;
           
         case 'extra_baits':
-          userData.baits = Math.min(userData.baits + item.value, MAX_BAITS);
+          userData.baits = userData.baits + item.value;
           effectMessage = `\n\n${item.emoji} Você encontrou um ${item.name}! +${item.value} iscas adicionadas (${userData.baits}/${MAX_BAITS}).`;
           break;
       }
@@ -500,6 +510,15 @@ function applyItemEffect(userData, item) {
       
     case 'downgrade':
       switch (item.effect) {
+        case 'weight_loss':
+          userData.debuffs.push({
+            type: 'weight_loss',
+            value: item.value,
+            remainingUses: item.duration
+          });
+          effectMessage = `\n\n${item.emoji} 𝕍𝕠𝕔ê 𝕡𝕖𝕤𝕔𝕠𝕦 𝕦𝕞𝕒... 🕯️𝕍𝔼𝕃𝔸 𝔸ℂ𝔼𝕊𝔸?! 😱 𝒪𝒷𝓇𝒶 𝒹𝑜 𝒸𝒶𝓅𝒾𝓇𝑜𝓉𝑜! 🔥👹🩸`;
+          break;
+
         case 'clear_inventory':
           userData.fishes = [];
           userData.totalWeight -= userData.inventoryWeight || 0;
@@ -519,6 +538,59 @@ function applyItemEffect(userData, item) {
   return { userData, effectMessage };
 }
 
+function toDemonic(text) {
+  const substitutions = {
+    a: ['𝖆', 'α', 'ᴀ', 'ᴀ', 'ค'],
+    b: ['𝖇', 'в', 'ɓ'],
+    c: ['𝖈', 'ƈ', 'ς'],
+    d: ['𝖉', 'ԁ', 'ɗ'],
+    e: ['𝖊', 'є', 'ɛ', 'ҽ'],
+    f: ['𝖋', 'ғ', 'ƒ'],
+    g: ['𝖌', 'ɠ', 'g'],
+    h: ['𝖍', 'ђ', 'ħ'],
+    i: ['𝖎', 'ι', 'ɨ', 'į'],
+    j: ['𝖏', 'ʝ', 'ј'],
+    k: ['𝖐', 'κ', 'ҡ'],
+    l: ['𝖑', 'ʟ', 'ℓ'],
+    m: ['𝖒', 'м', 'ʍ'],
+    n: ['𝖓', 'и', 'ภ'],
+    o: ['𝖔', 'σ', 'ø', 'ɵ'],
+    p: ['𝖕', 'ρ', 'ք'],
+    q: ['𝖖', 'զ', 'ʠ'],
+    r: ['𝖗', 'я', 'ʀ'],
+    s: ['𝖘', 'ѕ', 'ʂ'],
+    t: ['𝖙', 'τ', '†'],
+    u: ['𝖚', 'υ', 'ʋ'],
+    v: ['𝖛', 'ν', 'ⱱ'],
+    w: ['𝖜', 'ฬ', 'щ'],
+    x: ['𝖝', 'ж', 'ҳ'],
+    y: ['𝖞', 'ү', 'ყ'],
+    z: ['𝖟', 'ʐ', 'ζ']
+  };
+
+  function substituteChar(char) {
+    const lower = char.toLowerCase();
+    if (substitutions[lower]) {
+      const options = substitutions[lower];
+      const replacement = options[Math.floor(Math.random() * options.length)];
+      return char === lower ? replacement : replacement.toUpperCase();
+    }
+    return char;
+  }
+
+  // Embaralhar levemente a string mantendo um pouco de legibilidade
+  const chars = text.split('');
+  for (let i = chars.length - 1; i > 0; i--) {
+    if (Math.random() < 0.3) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [chars[i], chars[j]] = [chars[j], chars[i]];
+    }
+  }
+
+  return chars.map(substituteChar).join('');
+}
+
+
 /**
  * Aplica efeitos de buffs a um peixe
  * @param {Object} userData - Dados do usuário
@@ -526,15 +598,19 @@ function applyItemEffect(userData, item) {
  * @returns {Object} - Objeto com peixe modificado e buffs atualizados
  */
 function applyBuffs(userData, fish) {
-  // Se não há buffs, retorna o peixe original
-  if (!userData.buffs || userData.buffs.length === 0) {
+  // Se não há buffs OU debuffs, retorna o peixe original
+  if ((!userData.buffs || userData.buffs.length === 0) && (!userData.debuffs || userData.debuffs.length === 0)) {
     return { fish, buffs: [] };
   }
-  
+    
+  if(!userData.debuffs){
+    userData.debuffs = [];
+  }
   // Copia o peixe para não modificar o original
   let modifiedFish = { ...fish };
   // Copia os buffs para atualizá-los
   let updatedBuffs = [...userData.buffs];
+  let updatedDebuffs = [...userData.debuffs];
   let buffMessages = [];
   
   // Aplica cada buff e atualiza seus usos restantes
@@ -566,8 +642,31 @@ function applyBuffs(userData, fish) {
     // Mantém o buff se ainda tiver usos restantes
     return buff.remainingUses > 0;
   });
+
+  updatedDebuffs = updatedDebuffs.filter(debuff => {
+    if (debuff.remainingUses <= 0) return false;
+    
+    switch (debuff.type) {
+      case 'weight_loss':
+        const originalWeight = modifiedFish.weight;
+        modifiedFish.weight *= (1 + debuff.value);
+        modifiedFish.weight = parseFloat(modifiedFish.weight.toFixed(2));
+        
+        modifiedFish.name = toDemonic(modifiedFish.name);
+        // Adiciona mensagem de debuff
+        buffMessages.push(`⬇️ ⱻ𝖘𝖘𝖊 ⲡ𝖊𝗂𝖝𝖊 𝖕ⲁ𝓇𝖊𝖈𝖊... †αᑰ ʍαɢ𝓇υ? (${originalWeight}kg → ${modifiedFish.weight}kg)`);
+        break;
+    }
+    
+    // Decrementa usos restantes
+    debuff.remainingUses--;
+    // Mantém o buff se ainda tiver usos restantes
+    return debuff.remainingUses > 0;
+  });
+
+
   
-  return { fish: modifiedFish, buffs: updatedBuffs, buffMessages };
+  return { fish: modifiedFish, buffs: updatedBuffs, debuffs: updatedDebuffs, buffMessages };
 }
 
 /**
@@ -684,7 +783,8 @@ async function fishCommand(bot, message, args, group) {
         totalCatches: 0,
         baits: MAX_BAITS, // Começa com máximo de iscas
         lastBaitRegen: Date.now(),
-        buffs: []
+        buffs: [],
+        debuffs: []
       };
     } else {
       // Atualiza nome do usuário se mudou
@@ -762,6 +862,7 @@ async function fishCommand(bot, message, args, group) {
       const buffResult = applyBuffs(fishingData.fishingData[userId], fish);
       const modifiedFish = buffResult.fish;
       fishingData.fishingData[userId].buffs = buffResult.buffs;
+      fishingData.fishingData[userId].debuffs = buffResult.debuffs;
       
       // Adiciona mensagens de buffs ao effectMessage
       let buffResultMsg = "xxxxxxxx";
@@ -861,6 +962,7 @@ async function fishCommand(bot, message, args, group) {
     // Define o cooldown
     fishingCooldowns[userId] = now + FISHING_COOLDOWN;
     
+  
     // Se não pescou nenhum peixe (só lixo), retorna mensagem de lixo
     if (caughtFishes.length === 0) {
       return new ReturnMessage({
@@ -1117,6 +1219,19 @@ async function myFishCommand(bot, message, args, group) {
           }
         });
       }
+
+      if (userData.debuffs && userData.debuffs.length > 0) {
+        fishMessage += `\n*Debuffs Ativos*:\n`;
+        userData.debuffs.forEach(debuff => {
+          switch (debuff.type) {
+            case 'weight_loss':
+              fishMessage += `✝️ 𝕰'𝖘𝖍 𝖕𝖍𝖊𝖘𝖍 𝖛𝖍𝖔𝖗𝖓... †𝖆𝖆𝖆𝖌𝖗𝖗𝖗𝖗𝖍𝖙𝖍?? 🐟✝️ (🕯 ${debuff.remainingUses}🕯)\n`;
+              break;
+          }
+        });
+      }
+
+
       
       // Informa sobre o limite de inventário
       if (fishes.length >= MAX_FISH_PER_USER) {
@@ -1492,7 +1607,8 @@ async function showBaitsCommand(bot, message, args, group) {
         totalCatches: 0,
         baits: MAX_BAITS,
         lastBaitRegen: Date.now(),
-        buffs: []
+        buffs: [],
+        debuffs: []
       };
     }
     
@@ -1682,7 +1798,6 @@ async function legendaryFishCommand(bot, message, args, group) {
  */
 async function updateRareFishesAfterBug(bot, message, args, group) {
   try {
-    // Verifica se é administrador
     const chatId = message.group || message.author;
     
     // Envia mensagem de processamento
@@ -1898,6 +2013,83 @@ function isRareFish(fishName) {
   return RARE_FISH.some(rare => rare.name === fishName);
 }
 
+/**  
+ * Reseta os dados de pesca para o grupo atual  
+ * @param {WhatsAppBot} bot - Instância do bot  
+ * @param {Object} message - Dados da mensagem  
+ * @param {Array} args - Argumentos do comando  
+ * @param {Object} group - Dados do grupo  
+ * @returns {Promise<ReturnMessage>} Mensagem de retorno  
+ */  
+async function resetFishingDataCommand(bot, message, args, group) {  
+  try {  
+    // Verifica se é um grupo  
+    if (!message.group) {  
+      return new ReturnMessage({  
+        chatId: message.author,  
+        content: "❌ Este comando só pode ser usado em grupos.",  
+        options: {  
+          quotedMessageId: message.origin.id._serialized  
+        }  
+      });  
+    }  
+  
+    // Verifica se o usuário é admin  
+    const isAdmin = await bot.adminUtils.isAdmin(message.author, group, null, bot.client);  
+    if (!isAdmin) {  
+      return new ReturnMessage({  
+        chatId: message.group || message.author,  
+        content: "❌ Este comando só pode ser usado por administradores do grupo.",  
+        options: {  
+          quotedMessageId: message.origin.id._serialized  
+        }  
+      });  
+    }  
+  
+    // Obtém dados de pesca  
+    const fishingData = await getFishingData();  
+      
+    // Verifica se há dados para este grupo  
+    if (!fishingData.groupData || !fishingData.groupData[message.group]) {  
+      return new ReturnMessage({  
+        chatId: message.group,  
+        content: "ℹ️ Não há dados de pesca para este grupo.",  
+        options: {  
+          quotedMessageId: message.origin.id._serialized  
+        }  
+      });  
+    }  
+  
+    // Faz backup dos dados antes de resetar  
+    const backupData = { ...fishingData.groupData[message.group] };  
+    const numPlayers = Object.keys(backupData).length;  
+      
+    // Reseta os dados do grupo  
+    fishingData.groupData[message.group] = {};  
+      
+    // Salva os dados atualizados  
+    await saveFishingData(fishingData);  
+      
+    return new ReturnMessage({  
+      chatId: message.group,  
+      content: `✅ Dados de pesca resetados com sucesso!\n\n${numPlayers} jogadores tiveram seus dados de pesca neste grupo apagados.`,  
+      options: {  
+        quotedMessageId: message.origin.id._serialized  
+      }  
+    });  
+  } catch (error) {  
+    logger.error('Erro ao resetar dados de pesca:', error);  
+      
+    return new ReturnMessage({  
+      chatId: message.group || message.author,  
+      content: '❌ Ocorreu um erro ao resetar os dados de pesca. Por favor, tente novamente.',  
+      options: {  
+        quotedMessageId: message.origin.id._serialized  
+      }  
+    });  
+  }  
+}
+
 
 
 // Criar array de comandos usando a classe Command
@@ -2001,6 +2193,19 @@ const commands = [
       error: "❌"
     },
     method: legendaryFishCommand
+  }),
+  new Command({  
+    name: 'pesca-reset',  
+    description: 'Reseta os dados de pesca para o grupo atual',  
+    category: "jogos",  
+    adminOnly: true,  
+    cooldown: 10,  
+    reactions: {  
+      before: "⏳",  
+      after: "✅",  
+      error: "❌"  
+    },  
+    method: resetFishingDataCommand  
   })
 ];
 

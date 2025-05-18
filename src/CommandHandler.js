@@ -68,7 +68,7 @@ class CommandHandler {
       
       this.logger.info('Todos os comandos carregados com sucesso');
     } catch (error) {
-      this.logger.error('Erro ao carregar comandos:', error);
+      this.logger.error('Erro ao carregar comandos:', error.message ?? "xxx");
     }
   }
 
@@ -90,7 +90,7 @@ class CommandHandler {
         //this.logger.debug(`Nenhum comando personalizado encontrado para o grupo ${groupId}`);
       }
     } catch (error) {
-      this.logger.error(`Erro ao carregar comandos personalizados para o grupo ${groupId}:`, error);
+      this.logger.error(`Erro ao carregar comandos personalizados para o grupo ${groupId}:`, error.message ?? "xxx");
       this.customCommands[groupId] = [];
     }
   }
@@ -107,14 +107,14 @@ class CommandHandler {
         this.logger.info(`Cooldowns carregados: ${Object.keys(this.cooldowns).length} grupos`);
       } catch (error) {
         if (error.code !== 'ENOENT') {
-          this.logger.error('Erro ao carregar cooldowns:', error);
+          this.logger.error('Erro ao carregar cooldowns:', error.message ?? "xxx");
         } else {
           this.logger.info('Arquivo de cooldowns não encontrado, iniciando com cooldowns vazios');
         }
         this.cooldowns = {};
       }
     } catch (error) {
-      this.logger.error('Erro ao inicializar cooldowns:', error);
+      this.logger.error('Erro ao inicializar cooldowns:', error.message ?? "xxx");
       this.cooldowns = {};
     }
   }
@@ -136,9 +136,9 @@ class CommandHandler {
       
       await fs.writeFile(cooldownsPath, JSON.stringify(this.cooldowns, null, 2));
       this.cooldownsLastSaved = Date.now();
-      this.logger.debug('Cooldowns salvos com sucesso');
+      //this.logger.debug('Cooldowns salvos com sucesso');
     } catch (error) {
-      this.logger.error('Erro ao salvar cooldowns:', error);
+      this.logger.error('Erro ao salvar cooldowns:', error.message ?? "xxx");
     }
   }
 
@@ -235,7 +235,7 @@ class CommandHandler {
     // Salva cooldowns a cada minuto
     if (Date.now() - this.cooldownsLastSaved > 60000) {
       this.saveCooldowns().catch(error => {
-        this.logger.error('Erro ao salvar cooldowns:', error);
+        this.logger.error('Erro ao salvar cooldowns:', error.message ?? "xxx");
       });
     }
   }
@@ -271,7 +271,7 @@ class CommandHandler {
         this.cooldownMessages[cooldownMsgKey] = now;
       }
     } catch (error) {
-      this.logger.error('Erro ao enviar mensagem de cooldown:', error);
+      this.logger.error('Erro ao enviar mensagem de cooldown:', error.message ?? "xxx");
     }
   }
 
@@ -386,7 +386,7 @@ class CommandHandler {
   delayedReaction(msg, emoji, delay){
     setTimeout((m,e) => {
       m.react(e).catch(reactError => {
-        this.logger.error('Erro ao aplicar reação "antes":', reactError);
+        this.logger.error('Erro ao aplicar reação "antes":', reactError.message ?? "xxx");;
       });
     }, delay, msg, emoji);
   }
@@ -443,12 +443,12 @@ class CommandHandler {
     
       // Processa comando normalmente
       this.processCommand(bot, message, command, args, group).catch(error => {
-        this.logger.error('Erro em processCommand:', error);
+        this.logger.error('Erro em processCommand:', error.message ?? "xxx");
       });
       
       // Nota: Não esperamos processCommand para evitar bloquear a thread de eventos
     } catch (error) {
-      this.logger.error('Erro ao manipular comando:', error);
+      this.logger.error('Erro ao manipular comando:', error.message ?? "xxx");
     }
   }
 
@@ -592,6 +592,15 @@ class CommandHandler {
       this.logger.info(`[${gidDebug}][${message.author}/${message.authorName}] Ignorando comando em grupo pausado (${command})`);
       return;
     }
+
+    // Verifica se o bot deve ignorar mensagens no PV
+    let ignorePV = bot.ignorePV && bot.notInWhitelist(message.author);
+
+    if(ignorePV && message.group === null){ // Recebeu mensagem no PV
+      if(bot.whitelistPV){
+
+      }
+    }
     
     // Verifica se é um comando fixo
     const fixedCommand = this.fixedCommands.getCommand(command);
@@ -649,7 +658,7 @@ class CommandHandler {
         // Usa emoji de reação padrão
         await message.origin.react(this.defaultReactions.before);
       } catch (reactError) {
-        this.logger.error('Erro ao aplicar reação "antes":', reactError);
+        this.logger.error('Erro ao aplicar reação "antes":', reactError.message ?? "xxx");;
       }
       
       // Comandos de gerenciamento regulares requerem um grupo
@@ -735,11 +744,11 @@ class CommandHandler {
       try {
         await message.origin.react(this.defaultReactions.after);
       } catch (reactError) {
-        this.logger.error('Erro ao aplicar reação "depois":', reactError);
+        this.logger.error('Erro ao aplicar reação "depois":', reactError.message ?? "xxx");;
       }
       
     } catch (error) {
-      this.logger.error('Erro ao processar comando de gerenciamento:', error);
+      this.logger.error('Erro ao processar comando de gerenciamento:', error.message ?? "xxx");
       
       const responseChatId = message.managementResponseChatId || message.group || message.author;
       const returnMessage = new ReturnMessage({
@@ -773,6 +782,16 @@ class CommandHandler {
           this.logger.debug(`Comando ${command.name} requer mensagem citada, mas nenhuma foi fornecida`);
           return; // Ignora o comando silenciosamente
         }
+      }
+
+      // Apenas para adminsitradores
+      if (command.adminOnly) {  
+        const chat = await message.origin.getChat();
+        const isUserAdmin = await this.adminUtils.isAdmin(message.author, group, chat, bot.client);
+        if (!isUserAdmin) {  
+          this.logger.debug(`Comando ${command.name} requer administrador, mas o usuário não é`);
+          return;
+        }  
       }
       
       // Verifica se o comando requer mídia
@@ -808,7 +827,7 @@ class CommandHandler {
         try {
           await message.origin.react("🕒");
         } catch (reactError) {
-          this.logger.error('Erro ao aplicar reação "indisponível":', reactError);
+          this.logger.error('Erro ao aplicar reação "indisponível":', reactError.message ?? "xxx");;
         }
         
         const chatId = message.group || message.author;
@@ -836,7 +855,7 @@ class CommandHandler {
         try {
           await message.origin.react(command.reactions?.before);
         } catch (reactError) {
-          this.logger.error('Erro ao aplicar reação "antes":', reactError);
+          this.logger.error('Erro ao aplicar reação "antes":', reactError.message ?? "xxx");;
         }
       }
       
@@ -879,11 +898,11 @@ class CommandHandler {
         try {
           await message.origin.react(afterEmoji);
         } catch (reactError) {
-          this.logger.error('Erro ao aplicar reação "depois":', reactError);
+          this.logger.error('Erro ao aplicar reação "depois":', reactError.message ?? "xxx");;
         }
       }
     } catch (error) {
-      this.logger.error(`Erro ao executar comando fixo ${command.name}:`, error);
+      this.logger.error(`Erro ao executar comando fixo ${command.name}:`, error.message ?? "xxx");
       
       const chatId = message.group || message.author;
       const errorEmoji = command.reactions?.error || this.defaultReactions.error;
@@ -946,6 +965,28 @@ class CommandHandler {
         this.logger.warn(`Comando ${command.startsWith} não tem respostas`);
         return;
       }
+
+      // Apenas para adminsitradores
+      if (command.adminOnly) {  
+        const chat = await message.origin.getChat();
+        const isUserAdmin = await this.adminUtils.isAdmin(message.author, group, chat, bot.client);
+        if (!isUserAdmin) {  
+          this.logger.debug(`Comando ${command.name} requer administrador, mas o usuário não é`);
+
+          try {
+            await message.origin.react("⛔️");
+          } catch (reactError) {
+            this.logger.error('Erro ao aplicar reação "indisponível":', reactError.message ?? "xxx");;
+          }
+          
+          const returnMessage = new ReturnMessage({
+            chatId: message.group,
+            content: `o comando *${command.startsWith}* só pode ser usado por _administradores_.`
+          });
+
+          return;
+        }  
+      }
       
       if (command.allowedTimes && !this.checkAllowedTimes(command)) {
         this.logger.debug(`Comando ${command.startsWith} não está disponível neste horário/dia`);
@@ -954,12 +995,12 @@ class CommandHandler {
         try {
           await message.origin.react("🕒");
         } catch (reactError) {
-          this.logger.error('Erro ao aplicar reação "indisponível":', reactError);
+          this.logger.error('Erro ao aplicar reação "indisponível":', reactError.message ?? "xxx");;
         }
         
         const returnMessage = new ReturnMessage({
           chatId: message.group,
-          content: `O comando ${command.startsWith} só está disponível ${this.formatAllowedTimes(command)}.`
+          content: `o comando *${command.startsWith}* só está disponível ${this.formatAllowedTimes(command)}.`
         });
         
         await bot.sendReturnMessages(returnMessage);
@@ -980,7 +1021,7 @@ class CommandHandler {
         try {
           await message.origin.react(command.reactions?.before);
         } catch (reactError) {
-          this.logger.error('Erro ao aplicar reação "antes":', reactError);
+          this.logger.error('Erro ao aplicar reação "antes":', reactError.message ?? "xxx");;
         }
       }
       
@@ -988,7 +1029,7 @@ class CommandHandler {
       command.count = (command.count || 0) + 1;
       command.lastUsed = Date.now();
       await this.database.updateCustomCommand(group.id, command);
-      this.logger.debug(`Atualizadas estatísticas de uso para o comando ${command.startsWith}, contagem: ${command.count}`);
+      //this.logger.debug(`Atualizadas estatísticas de uso para o comando *${command.startsWith}*, contagem: ${command.count}`);
       
       // Reage à mensagem se especificado (esta é a reação específica do comando)
       if (command.react) {
@@ -996,7 +1037,7 @@ class CommandHandler {
           this.logger.debug(`Reagindo à mensagem com: ${command.react}`);
           await message.origin.react(command.react);
         } catch (error) {
-          this.logger.error('Erro ao reagir à mensagem:', error);
+          this.logger.error('Erro ao reagir à mensagem:', error.message ?? "xxx");
         }
       }
       
@@ -1004,7 +1045,7 @@ class CommandHandler {
 
       // Envia todas as respostas ou seleciona uma aleatória
       if (command.sendAllResponses) {
-        this.logger.debug(`Enviando todas as ${responses.length} respostas para o comando ${command.startsWith}`);
+        this.logger.debug(`Enviando todas as ${responses.length} respostas para o comando *${command.startsWith}*`);
         const returnMessages = [];
         
         for (const response of responses) {
@@ -1020,7 +1061,7 @@ class CommandHandler {
         }
       } else {
         const randomIndex = Math.floor(Math.random() * responses.length);
-        this.logger.debug(`Enviando resposta aleatória (${randomIndex + 1}/${responses.length}) para o comando ${command.startsWith}`);
+        this.logger.debug(`Enviando resposta aleatória (${randomIndex + 1}/${responses.length}) para o comando *${command.startsWith}*`);
         
         const returnMessage = await this.processCustomCommandResponse(bot, message, responses[randomIndex], command, group);
         if (returnMessage) {
@@ -1036,11 +1077,11 @@ class CommandHandler {
           await message.origin.react(afterEmoji);
         }
       } catch (reactError) {
-        this.logger.error('Erro ao aplicar reação "depois":', reactError);
+        this.logger.error('Erro ao aplicar reação "depois":', reactError.message ?? "xxx");;
       }
       
     } catch (error) {
-      this.logger.error(`Erro ao executar comando personalizado ${command.startsWith}:`, error);
+      this.logger.error(`Erro ao executar comando personalizado ${command.startsWith}:`, error.message ?? "xxx");
       
       const errorEmoji = command.reactions?.error || "❌";
       const returnMessage = new ReturnMessage({
@@ -1068,12 +1109,16 @@ class CommandHandler {
       this.logger.debug(`Processando resposta para comando ${command.startsWith}: ${responseText.substring(0, 50)}${responseText.length > 50 ? '...' : ''}`);
       
       // Processa variáveis na resposta
+      let options = {};
       let processedResponse = await this.variableProcessor.process(responseText, {
         message,
         group,
         command,
+        options,
         bot  // Incluindo o bot no contexto para processar variáveis de arquivo
       });
+
+      this.logger.debug(`Processada resposta: '${processedResponse}', options ${JSON.stringify(options)}`);
       
       // NOVA FUNCIONALIDADE: Verifica se a resposta é um comando embutido
       if (processedResponse && typeof processedResponse === 'object' && processedResponse.type === 'embedded-command') {
@@ -1106,7 +1151,8 @@ class CommandHandler {
             chatId: message.group,
             content: `Erro ao executar comando embutido: ${processedResponse.command}`,
             options: {
-              quotedMessageId: command.reply ? message.origin.id._serialized : undefined
+              quotedMessageId: command.reply ? message.origin.id._serialized : undefined,
+              ...options
             }
           });
         }
@@ -1125,7 +1171,8 @@ class CommandHandler {
             content: mediaItem.media,
             options: {
               caption: mediaItem.caption,
-              quotedMessageId: command.reply ? message.origin.id._serialized : undefined
+              quotedMessageId: command.reply ? message.origin.id._serialized : undefined,
+              ...options
             },
             delay: i * 1000 // Adiciona delay de 1 segundo entre mensagens
           }));
@@ -1142,7 +1189,8 @@ class CommandHandler {
           chatId: message.group,
           content: processedResponse,
           options: {
-            quotedMessageId: command.reply ? message.origin.id._serialized : undefined
+            quotedMessageId: command.reply ? message.origin.id._serialized : undefined,
+            ...options
           }
         });
       }
@@ -1167,11 +1215,12 @@ class CommandHandler {
             options: {
               caption: caption || undefined,
               sendMediaAsSticker: mediaType === 'sticker',
-              quotedMessageId: command.reply ? message.origin.id._serialized : undefined
+              quotedMessageId: command.reply ? message.origin.id._serialized : undefined,
+              ...options
             }
           });
         } catch (error) {
-          this.logger.error(`Erro ao enviar resposta de mídia (${mediaPath}):`, error);
+          this.logger.error(`Erro ao enviar resposta de mídia (${mediaPath}):`, error.message ?? "xxx");
           
           return new ReturnMessage({
             chatId: message.group,
@@ -1180,18 +1229,19 @@ class CommandHandler {
         }
       } else {
         // Resposta de texto
-        this.logger.debug(`Enviando resposta de texto para o comando ${command.startsWith}`);
+        this.logger.debug(`Enviando resposta de texto para o comando *${command.startsWith}*`);
         
         return new ReturnMessage({
           chatId: message.group,
           content: processedResponse,
           options: {
-            quotedMessageId: command.reply ? message.origin.id._serialized : undefined
+            quotedMessageId: command.reply ? message.origin.id._serialized : undefined,
+            ...options
           }
         });
       }
     } catch (error) {
-      this.logger.error('Erro ao processar resposta de comando personalizado:', error);
+      this.logger.error('Erro ao processar resposta de comando personalizado:', error.message ?? "xxx");
       return null;
     }
   }
@@ -1262,7 +1312,7 @@ class CommandHandler {
           this.logger.debug(`Encontrado comando auto-acionado: ${command.startsWith}`);
           // Executa o comando, mas não espera para evitar bloqueio
           this.executeCustomCommand(bot, message, command, [], group).catch(error => {
-            this.logger.error(`Erro no comando auto-acionado ${command.startsWith}:`, error);
+            this.logger.error(`Erro no comando auto-acionado ${command.startsWith}:`, error.message ?? "xxx");
           });
           break; // Executa apenas o primeiro comando correspondente
         }
@@ -1270,7 +1320,7 @@ class CommandHandler {
       
       //this.logger.debug(`Verificação de comando auto-acionado concluída para o grupo ${group.id}`);
     } catch (error) {
-      this.logger.error('Erro ao verificar comandos auto-acionados:', error);
+      this.logger.error('Erro ao verificar comandos auto-acionados:', error.message ?? "xxx");
     }
   }
   

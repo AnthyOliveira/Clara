@@ -1,5 +1,6 @@
-const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
+const { Client, Contact, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
+const qrimg = require('qr-image');
 const Database = require('./utils/Database');
 const Logger = require('./utils/Logger');
 const path = require('path');
@@ -38,12 +39,16 @@ class WhatsAppBot {
     this.otherBots = options.otherBots || [];
     
     // Novas propriedades para notificações de grupos da comunidade
+    this.ignorePV = options.ignorePV || false;
+    this.whitelist = options.whitelistPV || [];
+    this.ignoreInvites = options.ignoreInvites || false;
     this.grupoLogs = options.grupoLogs || process.env.GRUPO_LOGS;
     this.grupoInvites = options.grupoInvites || process.env.GRUPO_INVITES;
     this.grupoAvisos = options.grupoAvisos || process.env.GRUPO_AVISOS;
     this.grupoInteracao = options.grupoInteracao || process.env.GRUPO_INTERACAO;
     this.linkGrupao = options.linkGrupao || process.env.LINK_GRUPO_INTERACAO;
     this.linkAvisos = options.linkAvisos || process.env.LINK_GRUPO_AVISOS;
+    this.userAgent = options.userAgent ||  process.env.USER_AGENT || "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36 Edg/136.0.0.0";
 
     this.lastMessageReceived = Date.now();
 
@@ -76,7 +81,7 @@ class WhatsAppBot {
    * Inicializa o cliente WhatsApp
    */
   async initialize() {
-    this.logger.info(`Inicializando instância de bot ${this.id}`);
+    this.logger.info(`Inicializando instância de bot ${this.id}, prefixo ${this.prefix}`);
 
     this.database.registerBotInstance(this);
 
@@ -86,9 +91,18 @@ class WhatsAppBot {
     // Cria cliente com dados de sessão
     this.client = new Client({
       authStrategy: new LocalAuth({ clientId: this.id }),
-      puppeteer: this.puppeteerOptions
+      puppeteer: this.puppeteerOptions,
+      userAgent: this.userAgent
     });
 
+    // Coloca doadores na whitelist do PV
+    const donations = await this.database.getDonations();
+    for(let don of donations){
+      if(don.numero && don.numero?.length > 5){
+        this.whitelist.push(don.numero.replace(/\D/g, ''));
+      }
+    }
+    this.logger.info(`[whitelist][${this.id}] ${this.whitelist.length} números na whitelist do PV.`);
 
     // Registra manipuladores de eventos
     this.registerEventHandlers();
@@ -99,6 +113,15 @@ class WhatsAppBot {
     return this;
   }
 
+  notInWhitelist(author){
+    const cleanAuthor = author.replace(/\D/g, '');
+    return !(this.whitelist.includes(cleanAuthor))
+  }
+
+  rndString(){
+    return (Math.random() + 1).toString(36).substring(7);
+  }
+  
   /**
    * Prepara a lista de IDs de outros bots para serem ignorados
   */
@@ -143,7 +166,11 @@ class WhatsAppBot {
   registerEventHandlers() {
     // Evento de QR Code
     this.client.on('qr', (qr) => {
-      this.logger.info(`QR Code recebido, escaneie para autenticar a '${this.id}'`);
+      const qrCodeLocal = path.join(this.database.databasePath, `qrcode_${this.id}.png`);
+      let qr_png = qrimg.image(qr, { type: 'png' });
+      qr_png.pipe(fs.createWriteStream(qrCodeLocal));
+
+      this.logger.info(`QR Code recebido, escaneie para autenticar a '${this.id}'\n\t-> ${qrCodeLocal}`);
       qrcode.generate(qr, { small: true });
       this.logger.info(`------------ qrcode '${this.id}' -----------`);
     });
@@ -182,7 +209,7 @@ class WhatsAppBot {
         try {
           const startMessage = `🟢 [${this.phoneNumber.slice(2,4)}] *${this.id}* tá _on_! (${new Date().toLocaleString("pt-BR")})`;
           this.logger.debug(`Enviando startMessage no grupoAvisos: `, startMessage, this.grupoAvisos);
-          await this.sendMessage(this.grupoAvisos, startMessage);
+          //await this.sendMessage(this.grupoAvisos, startMessage);
         } catch (error) {
           this.logger.error('Erro ao enviar notificação de inicialização:', error);
         }
@@ -225,7 +252,7 @@ class WhatsAppBot {
         this.logger.debug(`Descartando mensagem recebida durante período inicial de ${this.id}`);
         return;
       }
-
+      
       this.lastMessageReceived = Date.now();
 
       // Calcula tempo de resposta
@@ -234,7 +261,7 @@ class WhatsAppBot {
       const responseTime = Math.max(0, currentTimestamp - messageTimestamp); // Não permite valores negativos
       
       // Verifica se o tempo de resposta é muito alto e se precisamos reiniciar o bot
-      if (responseTime > 60) {
+      if (responseTime > 60 && false) { // Desativado reiniciar por delay
         // Verifica se o bot não foi reiniciado recentemente pelo mesmo motivo
         const currentTime = Math.floor(Date.now() / 1000);
         const timeSinceLastRestart = currentTime - this.lastRestartForDelay;
@@ -423,7 +450,7 @@ class WhatsAppBot {
       const isGroup = chat.isGroup;
       
       // Rastreia mensagem recebida com tempo de resposta
-      this.loadReport.trackReceivedMessage(isGroup, responseTime);
+      this.loadReport.trackReceivedMessage(isGroup, responseTime, message.from);
       
       let type = 'text';
       let content = message.body;
@@ -782,6 +809,95 @@ class WhatsAppBot {
 
   getCurrentTimestamp(){
     return Math.round(+new Date()/1000);
+  }
+
+  /**
+   * Creates or retrieves a Contact object
+   * @param {string} phoneNumber - Phone number of the contact
+   * @param {string} name - Name of the contact
+   * @param {string} surname - Surname of the contact
+   * @returns {Promise<Contact>} - Contact object with all required properties and methods
+   */
+  async createContact(phoneNumber, name, surname) {
+    try {    
+      // Format the phone number to ensure it has the correct format for WhatsApp
+      const formattedNumber = phoneNumber.endsWith('@c.us') 
+        ? phoneNumber 
+        : `${phoneNumber.replace(/\D/g, '')}@c.us`;
+      
+      // Try to get the contact from WhatsApp
+      try {
+        const contact = await this.client.getContactById(formattedNumber);
+        if (contact) {
+          this.logger.debug(`Retrieved existing contact: ${formattedNumber}`);
+          return contact;
+        }
+      } catch (error) {
+        this.logger.debug(`Contact not found, creating mock: ${formattedNumber}`);
+      }
+      
+      // Create a full name from the provided name and surname
+      const fullName = `${name} ${surname}`.trim();
+      
+      // Create a contact data object that matches the expected structure
+      const contactData = {
+        id: {
+          server: 'c.us',
+          user: phoneNumber.replace(/\D/g, ''),
+          _serialized: formattedNumber
+        },
+        name: fullName,
+        shortName: name,
+        pushname: name,
+        number: phoneNumber.replace(/\D/g, '')
+      };
+      
+      // Create a new Contact instance
+      const mockContact = new Contact(this.client, contactData);
+      
+      // Override methods that would normally interact with WhatsApp
+      mockContact.getAbout = async () => {
+        this.logger.debug(`Mock getAbout called for ${formattedNumber}`);
+        return `About for ${fullName}`;
+      };
+      
+      mockContact.getChat = async () => {
+        this.logger.debug(`Mock getChat called for ${formattedNumber}`);
+        try {
+          return await this.client.getChatById(formattedNumber);
+        } catch (error) {
+          // If we can't get a real chat, we'll need to create a mock Chat
+          // This is more complex and might require importing the Chat class
+          // For now, we'll return a basic object
+          return {
+            id: { _serialized: formattedNumber },
+            name: fullName,
+            isGroup: false,
+            timestamp: Date.now()
+          };
+        }
+      };
+      
+      mockContact.getCommonGroups = async () => {
+        this.logger.debug(`Mock getCommonGroups called for ${formattedNumber}`);
+        return [];
+      };
+      
+      // Set additional properties
+      mockContact.isUser = true;
+      mockContact.isWAContact = true;
+      mockContact.isMyContact = false;
+      mockContact.isGroup = false;
+      mockContact.isBusiness = false;
+      mockContact.isEnterprise = false;
+      mockContact.isMe = false;
+      mockContact.isBlocked = false;
+      
+      return mockContact;
+    } catch (error) {
+      this.logger.error(`Error creating contact for ${phoneNumber}:`, error);
+      throw error;
+    }
   }
 
 }

@@ -250,6 +250,15 @@ class StreamMonitor extends EventEmitter {
     return this.channels;
   }
 
+  logErrorToFile(filename, error){
+    try{
+      const logErrorFile = path.join(this.database.databasePath, filename);
+      fs.writeFileSync(logErrorFile, error, 'utf8');
+    } catch(e){
+      this.logger.error(`[logErrorFile] Erro gravando log em arquivo`, e.message);
+    }
+  }
+
    /**
    * Refresh the Twitch API token or load existing token if still valid
    * @private
@@ -322,12 +331,142 @@ class StreamMonitor extends EventEmitter {
     }
   }
 
+  shuffle (array){ 
+    for (let i = array.length - 1; i > 0; i--) { 
+      const j = Math.floor(Math.random() * (i + 1)); 
+      [array[i], array[j]] = [array[j], array[i]]; 
+    } 
+    return array; 
+  }
+
+  /**
+   * Verifica se um canal da Twitch existe
+   * @param {string} channelName - Nome do canal a verificar
+   * @returns {Promise<boolean>} - True se o canal existir, false caso contrário
+   */
+  async twitchChannelExists(channelName) {
+    try {
+      // Ensure we have a valid token
+      if (!this.twitchToken) {
+        const token = await this._refreshTwitchToken();
+        if (!token) return false; // Can't proceed without token
+      }
+      
+      // Normalize channel name
+      const normalizedChannelName = channelName.toLowerCase().trim();
+      
+      // Query Twitch API to check if the user exists
+      const userResponse = await axios.get(
+        `https://api.twitch.tv/helix/users`,
+        {
+          headers: {
+            'Client-ID': this.twitchClientId,
+            'Authorization': `Bearer ${this.twitchToken}`
+          },
+          params: {
+            login: normalizedChannelName
+          }
+        }
+      );
+      
+      // If we got data and at least one user, the channel exists
+      return userResponse.data && 
+             userResponse.data.data && 
+             userResponse.data.data.length > 0;
+             
+    } catch (error) {
+      // If unauthorized, try to refresh token and try again
+      if (error.response && error.response.status === 401) {
+        await this._refreshTwitchToken();
+        // Try one more time with the new token
+        try {
+          const userResponse = await axios.get(
+            `https://api.twitch.tv/helix/users`,
+            {
+              headers: {
+                'Client-ID': this.twitchClientId,
+                'Authorization': `Bearer ${this.twitchToken}`
+              },
+              params: {
+                login: channelName.toLowerCase().trim()
+              }
+            }
+          );
+          
+          return userResponse.data && 
+                 userResponse.data.data && 
+                 userResponse.data.data.length > 0;
+        } catch (retryError) {
+          this.logger.error(`Error checking if Twitch channel exists (retry): ${channelName}`, retryError.message);
+          return true;
+        }
+      }
+      
+      this.logger.error(`Error checking if Twitch channel exists: ${channelName}`, error.message);
+      return true;
+    }
+  }
+
+  async cleanupChannelList(channelsObj){
+    try {
+      let channels = channelsObj.map(ch => ch.name);
+      this.logger.info(`[cleanupChannelList] Algum dos canais desta lista pode estar com erro, verificando todos: `, channels);
+      const groups = await this.database.getGroups();
+
+
+      const channelsToRemove = [];
+
+      // Processa cada grupo
+      for(let channelCheck of channels){
+        // Procura quais grupos tem esse canal
+
+        let channelHasGroup = false;
+        for (const group of groups) {
+          if (group.twitch && Array.isArray(group.twitch)) {
+            for (const gpChannel of group.twitch) {
+              if(gpChannel.channel == channelCheck){
+                channelHasGroup = true;
+
+                // Ok, canal está num grupo, mas esse canal existe?
+                const channelExists = await this.twitchChannelExists(channelCheck);
+              
+                if (!channelExists) {
+                  this.logger.info(`[cleanupChannelList] Canal Twitch não encontrado: ${channelCheck} - Removendo do grupo ${group.id} (${group.name || 'sem nome'})`);
+                  channelsToRemove.push(channel.channel.toLowerCase());
+                  continue;
+                } else {
+                  this.logger.info(`[cleanupChannelList] ${channelCheck} @ (${group.name || 'sem nome'}, ok, existe!`);
+                }
+                await sleep(500);  // API da twitch fica nervosa com spam
+              }
+            }
+          }
+        }  
+
+        // Passei por todos os grupos mas não encontrei o canal, só dá unsubscribe
+        // Provavelmente chegou aqui pq configuraram errado e depois removeram antes do bot mesmo remover
+        if(!channelHasGroup){
+            this.logger.info(`[cleanupChannelList] Canal Twitch não está em grupo algum: ${channelCheck} - Apenas unsubscribe ${resUnsub}`);
+            const resUnsub = this.unsubscribe(channelCheck, 'twitch');
+        }
+      }
+
+      if (channelsToRemove.length > 0) {
+        group.twitch = group.twitch.filter(c => !channelsToRemove.includes(c.channel.toLowerCase()));
+        await this.bot.database.saveGroup(group);
+        this.logger.info(`[cleanupChannelList] Removidos ${channelsToRemove.length} canais inexistentes do grupo ${group.id}`, channelsToRemove);
+      }
+    } catch (error) {
+      this.logger.error('[cleanupChannelList] Erro ao fazer limpeza dos canais:', error);
+    }
+  }
+
   /**
    * Poll Twitch channels for status updates
    * @private
    */
   async _pollTwitchChannels(customChannels = null) {
-    const twitchChannels = customChannels ?? this.channels.filter(c => c.source.toLowerCase() === 'twitch');
+    const twitchChannels = this.shuffle(customChannels ?? this.channels.filter(c => c.source.toLowerCase() === 'twitch'));
     if (twitchChannels.length === 0) return;
     
     // Ensure we have a valid token
@@ -440,17 +579,19 @@ class StreamMonitor extends EventEmitter {
         if (error.response && error.response.status === 401) {
           await this._refreshTwitchToken();
         } else {
-          this.logger.error('Error polling Twitch channels:', error.message);
           failedBatches.push(batch);
+          this.logger.error('Error polling Twitch channels, adding to failed batch:', error.message);
+          this.logErrorToFile(`twitch-batch${bAt}-errors.json`, JSON.stringify(error, null, "\t"));
         }
       }
 
-      await sleep(5000);
+      await sleep(3000);
     }
 
     if(failedBatches.length > 0){
       if(customChannels){
-        this.logger.warn(`[_pollTwitchChannels] Error polling ${failedBatches.length} batches while retrying, skipping.`);
+        this.logger.warn(`[_pollTwitchChannels] Error polling ${failedBatches.length} batches while retrying, checking channels.`);
+        this.cleanupChannelList(customChannels);
       } else {
         this.logger.warn(`[_pollTwitchChannels] Error polling ${failedBatches.length} batches, trying again.`);
         this._pollTwitchChannels(failedBatches.flat(1));
@@ -523,10 +664,77 @@ class StreamMonitor extends EventEmitter {
     this._saveDatabase();
   }
 
+  extractChannelID(html) {
+    // Regular expression to match YouTube channel URLs
+    const regex = /youtube\.com\/channel\/(UC[\w-]+)/g;
+    
+    // Find all matches
+    const matches = [...html.matchAll(regex)];
+    
+    // Extract channel IDs
+    const channelIDs = matches.map(match => match[1]);
+    
+    // Count occurrences of each channel ID
+    const counts = {};
+    channelIDs.forEach(id => {
+      counts[id] = (counts[id] || 0) + 1;
+    });
+    
+    // Find the ID with the highest count
+    let mostFrequentID = null;
+    let highestCount = 0;
+    
+    for (const [id, count] of Object.entries(counts)) {
+      if (count > highestCount) {
+        highestCount = count;
+        mostFrequentID = id;
+      }
+    }
+    
+    return mostFrequentID;
+  }
+
   /**
    * Poll YouTube channels for status updates and new videos
    * @private
    */
+   async getYtChannelID(channel){
+    const channelsIdCachePath = path.join(this.database.databasePath, "yt-channelsID-cache.json");
+
+    if (!fs.existsSync(channelsIdCachePath)) {
+      fs.writeFileSync(channelsIdCachePath, "{}");
+    }
+
+    const channelsIdCache = JSON.parse(fs.readFileSync(channelsIdCachePath, 'utf8')) ?? {};
+    
+    if(channelsIdCache[channel]){
+      this.logger.debug(`[getYtChannelID][cache] ${channel} => ${channelsIdCache[channel]}`);
+      return channelsIdCache[channel];
+    }
+
+    const chUrls = [`https://www.youtube.com/c/${channel}`, `https://www.youtube.com/@${channel}`];
+    for(let chUrl of chUrls){
+      try {
+        this.logger.debug(`[getYtChannelID] Tentando: ${chUrl}`);
+        const resolveResponse = await axios.get(chUrl);
+        
+        let exID = this.extractChannelID(resolveResponse.data);
+
+        if(exID){
+          this.logger.debug(`[getYtChannelID] Extraido ID do canal '${channel}': ${exID}`);
+          channelsIdCache[channel] = exID;
+          fs.writeFileSync(channelsIdCachePath, JSON.stringify(channelsIdCache, null, "\t"), 'utf8');
+          return exID;
+        }
+
+      } catch (error) {
+        this.logger.error(`[getYtChannelID] Error tentando buscar YouTube channel ID para '${chUrl}':`, error.message);
+      }
+    }
+
+    return null;
+  }
+
   async _pollYoutubeChannels() {
     const youtubeChannels = this.channels.filter(c => c.source.toLowerCase() === 'youtube');
     if (youtubeChannels.length === 0) return;
@@ -538,25 +746,11 @@ class StreamMonitor extends EventEmitter {
         
         // If it's not a channel ID format, try to resolve it
         if (!channelId.startsWith('UC')) {
-          try {
-            const resolveResponse = await axios.get(`https://www.youtube.com/c/${channel.name}`);
-            const html = resolveResponse.data;
-            const root = parse(html);
-            const metaTag = root.querySelector('meta[itemprop="channelId"]');
-            if (metaTag) {
-              channelId = metaTag.getAttribute('content');
-            } else {
-              // Try alternative method - find in page source
-              const match = html.match(/"channelId":"([^"]+)"/);
-              if (match && match[1]) {
-                channelId = match[1];
-              }
-            }
-          } catch (error) {
-            // If we can't resolve, just continue with the name
-            this.logger.error(`Error resolving YouTube channel ID for ${channel.name}:`, error.message);
-          }
+          this.logger.debug(`[getYtChannelID] ${channelId} não é ID, vou tentar buscar`);
+          channelId = await this.getYtChannelID(channelId) ?? channelId;
         }
+
+        this.logger.debug(`[_pollYoutubeChannels] Buscando videos para o channelID: ${channelId}`);
         
         // Get channel info and latest videos using RSS feed
         const response = await axios.get(
@@ -674,8 +868,8 @@ class StreamMonitor extends EventEmitter {
         }
       } catch (error) {
         // Verifica se é um erro 404 (canal não encontrado)
-        if (error.response && error.response.status === 404) {
-          this.logger.warn(`Canal do YouTube não encontrado: ${channel.name}. Removendo do monitoramento.`);
+        if (false && error.response && error.response.status === 404) {
+          this.logger.warn(`Canal do YouTube não encontrado: '${channel.name}'. Removendo do monitoramento.`);
           
           // Remove o canal do monitoramento
           this.unsubscribe(channel.name, 'youtube');

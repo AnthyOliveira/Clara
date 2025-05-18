@@ -4,6 +4,7 @@ const LLMService = require('./services/LLMService');
 const ReturnMessage = require('./models/ReturnMessage');
 const path = require('path');
 const fs = require('fs').promises;
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
  * Sistema para gerenciamento de monitoramento de streams
@@ -40,7 +41,7 @@ class StreamSystem {
       this.registerEventHandlers();
       
       // Carrega canais para monitorar
-      await this.loadChannelsToMonitor();
+      await this.loadChannelsToMonitor(false);
       
       // Inicia o monitoramento (apenas se ainda não estiver ativo)
       if (!this.streamMonitor.isMonitoring) {
@@ -157,8 +158,9 @@ class StreamSystem {
 
   /**
    * Carrega canais para monitorar a partir dos grupos cadastrados
+   * @param {boolean} cleanup - Se deve verificar e remover canais inexistentes (default: false)
    */
-  async loadChannelsToMonitor() {
+  async loadChannelsToMonitor(cleanup = false) {
     try {
       // Obtém todos os grupos
       const groups = await this.bot.database.getGroups();
@@ -173,11 +175,37 @@ class StreamSystem {
       for (const group of groups) {
         // Adiciona canais Twitch
         if (group.twitch && Array.isArray(group.twitch)) {
+          // Array para armazenar canais a serem removidos
+          const channelsToRemove = [];
+          
           for (const channel of group.twitch) {
-            if (!subscribedChannels.twitch.includes(channel.channel)) {
-              this.streamMonitor.subscribe(channel.channel, 'twitch');
-              subscribedChannels.twitch.push(channel.channel);
+            if(!channel.channel.startsWith("xxx_") && !channel.channel.includes("twitch")){
+              // Se cleanup estiver ativado, verifica se o canal existe
+              if (cleanup && this.streamMonitor) {
+                const channelExists = await this.streamMonitor.twitchChannelExists(channel.channel);
+                
+                if (!channelExists) {
+                  this.logger.info(`[loadChannelsToMonitor][Cleanup] Canal Twitch não encontrado: ${channel.channel} - Removendo do grupo ${group.id} (${group.name || 'sem nome'})`);
+                  channelsToRemove.push(channel.channel.toLowerCase());
+                  continue;
+                }
+                await sleep(500);
+              }
+              
+              if (!subscribedChannels.twitch.includes(channel.channel)) {
+                this.streamMonitor.subscribe(channel.channel, 'twitch');
+                subscribedChannels.twitch.push(channel.channel);
+              }
+            } else {
+              this.logger.info(`[loadChannelsToMonitor][${group.name}] ${channel.channel} ignorado por nome estranho`);
             }
+          }
+          
+          // Remove canais inexistentes se cleanup estiver ativado
+          if (cleanup && channelsToRemove.length > 0) {
+            group.twitch = group.twitch.filter(c => !channelsToRemove.includes(c.channel.toLowerCase()));
+            await this.bot.database.saveGroup(group);
+            this.logger.info(`[loadChannelsToMonitor][Cleanup] Removidos ${channelsToRemove.length} canais inexistentes do grupo ${group.id}`, channelsToRemove);
           }
         }
         
@@ -449,7 +477,36 @@ class StreamSystem {
 
       // Envia as mensagens originais para o grupo
       if (returnMessages.length > 0) {
-        await this.bot.sendReturnMessages(returnMessages);
+        if(!group.botNotInGroup){
+          group.botNotInGroup = [];
+        }
+
+        // Verifica se o bot está marcado como fora desse grupo antes de tentar enviar
+        if(group.botNotInGroup.includes(this.bot.id)){
+          this.logger.info(`[processStreamEvent][${this.bot.id}][${eventData.channelName}][${group.name}] O bot está marcado como não estando neste grupo, ignorando evento.`);
+        } else {
+          const resultados = await this.bot.sendReturnMessages(returnMessages);
+          // Aqui dá pra verificar se foi possível entregar a mensagem
+          let nenhumaEnviada = true;
+
+          for(let resultado of resultados){
+            const resInfo = await resultado.getInfo();
+
+            if(resInfo.delivery.length == 0 && resInfo.played.length == 0 && resInfo.read.length == 0){
+              this.logger.debug(`[processStreamEvent][${this.bot.id}][${eventData.channelName}][${group.name}] Msg notificação NÃO FOI ENVIADA!`, resInfo);
+            } else {
+              this.logger.debug(`[processStreamEvent][${this.bot.id}][${eventData.channelName}][${group.name}] Msg retorno enviada ok`);
+              nenhumaEnviada = false;
+            }
+          }
+
+          // Se nenhuma enviada, o bot não tá no grupo e ainda não sabia
+          if(nenhumaEnviada){
+            this.logger.info(`[processStreamEvent] O bot ${this.bot.id} não conseguiu enviar mensagens sobre a live '${eventData.channelName}' para o grupo ${group.name}/${group.id}, ignorando daqui pra frente`);
+            group.botNotInGroup.push(this.bot.id);
+            await this.bot.database.saveGroup(group);
+          }
+        }
         
         if (this.debugNotificacoes && this.bot.grupoLogs) {
           await this.bot.sendMessage(

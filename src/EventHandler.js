@@ -128,13 +128,14 @@ class EventHandler {
       // Verifica links de convite em chats privados
       if (!message.group) {
         // Verifica se é uma mensagem de link de convite
-        const isInviteHandled = await bot.inviteSystem.processMessage(message);
-        if (isInviteHandled) return;
-        
-        // Verifica se é uma mensagem de acompanhamento para um convite
-        const isFollowUpHandled = await bot.inviteSystem.processFollowUpMessage(message);
-        if (isFollowUpHandled) return;
-
+        if(!bot.ignoreInvites){
+          const isInviteHandled = await bot.inviteSystem.processMessage(message);
+          if (isInviteHandled) return;
+          
+          // Verifica se é uma mensagem de acompanhamento para um convite
+          const isFollowUpHandled = await bot.inviteSystem.processFollowUpMessage(message);
+          if (isFollowUpHandled) return;
+        }
       }
       
       // Processa saudação para novos usuários no PV
@@ -148,14 +149,16 @@ class EventHandler {
       if (message.group) {
         group = await this.getOrCreateGroup(message.group);
 
-        // TEMPORÁRIO REMOVER APÓS 1 DIA DE NOVO CÓDIGO
-        // DESTRAVAR GRUPOS ATIVOS
-        // if(group.paused){
-        //   this.logger.info(`[processMessage] DESTRAVADO GRUPO: '${group.name}'`);
-        //   group.paused = false; // Sempre que o bot entra no grupo, tira o pause (para grupos em que saiu/foi removido)
-        //   await this.database.saveGroup(group);
-        // }
-        // DESTRAVAR
+        if(!group.botNotInGroup){
+          group.botNotInGroup = [];
+        } else {
+          // Verifica se o bot está marcada como fora do grupo - se ele recebeu msg aqui, é pq tá dentro!
+          if(group.botNotInGroup.includes(bot.id)){
+            this.logger.info(`[processMessage] O bot '${bot.id}' estava como fora do grupo '${group.name}', mas recebeu mensagem - atualizando`);
+            group.botNotInGroup = group.botNotInGroup.filter(b => b !== bot.id);
+            await this.database.saveGroup(group);
+          }
+        }
         
         // Armazena mensagem para histórico de conversação
         await SummaryCommands.storeMessage(message, group);
@@ -300,7 +303,7 @@ class EventHandler {
     const processed = await SpeechCommands.processAutoSTT(bot, message, group);
     if (processed) return;
 
-    if (!group) {
+    if (!group && !bot.ignorePV) {
       const stickerProcessed = await Stickers.processAutoSticker(bot, message, group);
       if (stickerProcessed) return;
     }

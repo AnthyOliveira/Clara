@@ -21,7 +21,6 @@ const llmService = new LLMService({});
 
 const ffmpegPath = process.env.FFMPEG_PATH || 'ffmpeg';
 const allTalkAPI = process.env.ALLTALK_API || 'http://localhost:7851/';
-const alltalkOutputFolder = path.join(process.env.ALLTALK_FOLDER, "outputs");
 
 const whisperPath = process.env.WHISPER;
 
@@ -248,7 +247,7 @@ async function textToSpeech(bot, message, args, group, char = "clara") {
     
     return returnMessage;
   } catch (error) {
-    logger.error('Erro na conversão de texto para voz:', error);
+    logger.error('Erro na conversão de texto para voz:');
     const chatId = message.group || message.author;
     
     return new ReturnMessage({
@@ -430,7 +429,7 @@ async function speechToText(bot, message, args, group, optimizeWithLLM = true) {
     // Cria um array com a mensagem de processamento e a mensagem de resultado
     return returnMessage;
   } catch (error) {
-    logger.error('Erro na conversão de voz para texto:', error);
+    logger.error('Erro na conversão de voz para texto:');
     const chatId = message.group || message.author;
     
     return new ReturnMessage({
@@ -449,6 +448,11 @@ async function speechToText(bot, message, args, group, optimizeWithLLM = true) {
  */
 async function processAutoSTT(bot, message, group) {
   try {
+
+    if(!message.group && bot.ignorePV){
+       return false;
+    }
+    
     const idChat = message.group ?? message.author;
     // Pula se não for mensagem de voz/áudio
     if (message.type !== 'voice' && message.type !== 'audio') {
@@ -541,7 +545,7 @@ async function processAutoSTT(bot, message, group) {
     
     return true;
   } catch (error) {
-    logger.error('Erro no auto-STT:', error);
+    logger.error('Erro no auto-STT:');
     return false;
   }
 }
