@@ -127,29 +127,24 @@ class WhatsAppBot {
   */
   prepareOtherBotsBlockList() {
     if (!this.otherBots || !this.otherBots.length) return;
-    
-    // Garante que blockedContacts seja um array
-    if (!this.blockedContacts || !Array.isArray(this.blockedContacts)) {
-      this.blockedContacts = [];
-    }
 
-    // Adiciona IDs dos outros bots à lista de bloqueados
+    // Limpa a lista antes de adicionar novamente
+    this.blockedContacts = [];
+
     for (const bot of this.otherBots) {
-      const botId = bot.endsWith("@c.us") ? botId : `${bot}@c.us`;
+      const botId = bot.endsWith("@c.us") ? bot : `${bot}@c.us`;
       this.blockedContacts.push({
         id: {
           _serialized: botId
         },
-        name: `Bot: ${bot.id || 'desconhecido'}`
+        name: `Bot: ${bot}`
       });
-      
-      this.logger.info(`Adicionado bot '${bot.id}' (${botId}) à lista de ignorados`);
-      
-    }
-    
-    this.logger.info(`Lista de ignorados atualizada: ${this.blockedContacts.length} contatos/bots`, this.blockedContacts );
 
-  }
+      this.logger.info(`Adicionado bot '${bot}' (${botId}) à lista de ignorados`);
+    }
+
+    this.logger.info(`Lista de ignorados atualizada: ${this.blockedContacts.length} contatos/bots`, this.blockedContacts );
+}
 
     /**
    * Verifica se uma mensagem está dentro do período inicial de descarte
@@ -185,10 +180,6 @@ class WhatsAppBot {
       try {
         this.blockedContacts = await this.client.getBlockedContacts();
         this.logger.info(`Carregados ${this.blockedContacts.length} contatos bloqueados`);
-
-        if (this.isConnected && this.otherBots.length > 0) {
-          this.prepareOtherBotsBlockList();
-        }
       } catch (error) {
         this.logger.error('Erro ao carregar contatos bloqueados:', error);
         this.blockedContacts = [];

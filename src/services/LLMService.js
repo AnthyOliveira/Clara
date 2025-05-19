@@ -16,7 +16,7 @@ class LLMService {
     this.googleKey = config.googleKey || process.env.GOOGLE_API_KEY;
     this.deepseekKey = config.deepseekKey || process.env.DEEPSEEK_API_KEY;
     this.localEndpoint = config.localEndpoint || process.env.LOCAL_LLM_ENDPOINT || 'http://localhost:1234/v1';
-    this.apiTimeout = config.apiTimeout || parseInt(process.env.API_TIMEOUT) || 10000;
+    this.apiTimeout = config.apiTimeout || parseInt(process.env.API_TIMEOUT) || 120000;
     
     /*  
     this.logger.debug('LLMService inicializado com configuração:', {
@@ -203,7 +203,7 @@ class LLMService {
    * Envia uma solicitação de completação para OpenAI (ou LM Studio local)
    * @param {Object} options - Opções de solicitação
    * @param {string} options.prompt - O texto do prompt
-   * @param {string} [options.model='gpt-3.5-turbo'] - O modelo a usar
+   * @param {string} [options.model='mistral-7b-instruct-v0.1'] - O modelo a usar
    * @param {number} [options.maxTokens=1000] - Número máximo de tokens a gerar
    * @param {number} [options.temperature=0.7] - Temperatura de amostragem
    * @param {boolean} [options.useLocal=false] - Se deve usar o endpoint LM Studio local
@@ -225,7 +225,7 @@ class LLMService {
 
       this.logger.debug(`Enviando solicitação para API ${options.useLocal ? 'LM Studio Local' : 'OpenAI'}:`, { 
         endpoint,
-        model: options.model || 'gpt-3.5-turbo',
+        model: options.model || 'mistral-7b-instruct-v0.1',
         promptLength: options.prompt.length,
         maxTokens: options.maxTokens || 1000
       });
@@ -233,7 +233,7 @@ class LLMService {
       const response = await axios.post(
         endpoint,
         {
-          model: options.model || 'gpt-3.5-turbo',
+          model: options.model || 'mistral-7b-instruct-v0.1',
           messages: [
             { role: 'user', content: options.prompt }
           ],
