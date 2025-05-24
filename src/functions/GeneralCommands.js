@@ -1,5 +1,4 @@
 const path = require('path');
-const LLMService = require('../services/LLMService');
 const Logger = require('../utils/Logger');
 const ReturnMessage = require('../models/ReturnMessage');
 const Command = require('../models/Command');
@@ -9,9 +8,6 @@ const fs = require('fs').promises;
 const logger = new Logger('general-commands');
 
 const database = Database.getInstance();
-
-// Cria instância do serviço LLM com configuração padrão
-const llmService = new LLMService({});
 
 
 // Define os métodos de comando separadamente
@@ -63,6 +59,28 @@ async function avisosCommand(bot, message, args, group){
   });
 }
 
+async function goldCommand(bot, message, args, group) {
+  const chatId = message.group || message.author;
+
+  try {
+    const goldPath = path.join(database.databasePath, 'textos', 'gold.txt');
+    const goldContent = await fs.readFile(goldPath, 'utf8');
+
+    return new ReturnMessage({
+      chatId: chatId,
+      content: goldContent.trim()
+    });
+
+  } catch (error) {
+    logger.warn('Erro ao ler gold.txt:', error);
+    return new ReturnMessage({
+      chatId: chatId,
+      content: `🔗 *Github:* https://github.com/moothz/ravena-ai`
+    });
+  }
+
+}
+
 async function codigoCommand(bot, message, args, group) {
   const chatId = message.group || message.author;
 
@@ -76,7 +94,7 @@ async function codigoCommand(bot, message, args, group) {
     });
 
   } catch (error) {
-    logger.warn('Erro ao ler cabeçalho do menu:', error);
+    logger.warn('Erro ao ler codigo.txt:', error);
     return new ReturnMessage({
       chatId: chatId,
       content: `🔗 *Github:* https://github.com/moothz/ravena-ai`
@@ -164,71 +182,6 @@ Aqui vai as principais diferenças pra antiga:
 - Todas as ravenas rodam no mesmo processo
 `
   });
-}
-
-async function aiCommand(bot, message, args, group) {
-  const chatId = message.group || message.author;
-  
-  let question = args.join(' ');
-  const quotedMsg = await message.origin.getQuotedMessage();
-  if(quotedMsg){
-    // Tem mensagem marcada, junta o conteudo (menos que tenha vindo de reação)
-    if(!message.originReaction){
-      if(quotedMsg.body.length > 10){
-        question += `\n\n${quotedMsg.body}`;
-      }
-    }
-  }
-
-  if (question.length < 5) {
-    logger.debug('Comando ai chamado sem pergunta');
-    return new ReturnMessage({
-      chatId: chatId,
-      content: 'Por favor, forneça uma pergunta. Exemplo: !ai Qual é a capital da França?',
-      options: {
-        quotedMessageId: message.origin.id._serialized
-      }
-    });
-  }
-  
-  logger.debug(`Comando ai com pergunta: ${question}`);
-  
-  // Primeiro, envia uma mensagem indicando que está processando
-  // bot.sendReturnMessages(new ReturnMessage({
-  //   chatId: chatId,
-  //   content: `🔍 Processando: "${question}"...`,
-  //   options: {
-  //     quotedMessageId: message.origin.id._serialized
-  //   }
-  // }))
-  
-  // Obtém resposta da IA
-  try {
-    logger.debug('Tentando obter completação LLM');
-    const response = await llmService.getCompletion({
-      prompt: question
-    });
-    
-    logger.debug('Resposta LLM obtida', response);
-    
-    // Retorna a resposta da IA
-    return new ReturnMessage({
-      chatId: chatId,
-      content: response,
-      options: {
-        quotedMessageId: message.origin.id._serialized
-      }
-    });
-  } catch (error) {
-    logger.error('Erro ao obter completação LLM:', error);
-    return new ReturnMessage({
-      chatId: chatId,
-      content: 'Desculpe, encontrei um erro ao processar sua solicitação.',
-      options: {
-        quotedMessageId: message.origin.id._serialized
-      }
-    });
-  }
 }
 
 /**
@@ -366,61 +319,6 @@ const commands = [
     },
     method: pingCommand
   }),
-  
-  new Command({
-    name: 'ai',
-    description: 'Pergunte algo à IA',
-    category: "ia",
-    group: "askia",
-    reactions: {
-      trigger: "🤖",
-      before: "⏳",
-      after: "🤖"
-    },
-    cooldown: 60,
-    method: aiCommand
-  }),
-  new Command({
-    name: 'ia',
-    description: 'Alias para AI',
-    category: "ia",
-    group: "askia",
-    reactions: {
-      trigger: "🤖",
-      before: "⏳",
-      after: "🤖"
-    },
-    cooldown: 60,
-    method: aiCommand
-  }), 
-  new Command({
-    name: 'gpt',
-    hidden: true,
-    description: 'Alias para AI',
-    category: "ia",
-    group: "askia",
-    reactions: {
-      trigger: "🤖",
-      before: "⏳",
-      after: "🤖"
-    },
-    cooldown: 60,
-    method: aiCommand
-  }), 
-  new Command({
-    name: 'gemini',
-    hidden: true,
-    description: 'Alias para AI',
-    category: "ia",
-    group: "askia",
-    reactions: {
-      trigger: "🤖",
-      before: "⏳",
-      after: "🤖"
-    },
-    cooldown: 60,
-    method: aiCommand
-  }), 
   new Command({
     name: 'apelido',
     description: 'Define seu apelido no grupo',
@@ -473,6 +371,17 @@ const commands = [
     },
     method: codigoCommand
   }),
+  new Command({
+    name: 'gold',
+    description: 'Info Ravena gold',
+    category: "geral",
+    hidden: true,
+    reactions: {
+      before: "🪙"
+    },
+    method: goldCommand
+  }),
+  
   new Command({
     name: 'convite',
     description: 'Saiba mas sobre a ravena em grupos',

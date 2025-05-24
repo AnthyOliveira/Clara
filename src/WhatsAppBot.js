@@ -1,4 +1,4 @@
-const { Client, Contact, LocalAuth, MessageMedia } = require('whatsapp-web.js');
+const { Client, Contact, LocalAuth, MessageMedia, Location } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const qrimg = require('qr-image');
 const Database = require('./utils/Database');
@@ -46,6 +46,7 @@ class WhatsAppBot {
     this.grupoInvites = options.grupoInvites || process.env.GRUPO_INVITES;
     this.grupoAvisos = options.grupoAvisos || process.env.GRUPO_AVISOS;
     this.grupoInteracao = options.grupoInteracao || process.env.GRUPO_INTERACAO;
+    this.grupoEstabilidade = options.grupoEstabilidade || process.env.GRUPO_ESTABILIDADE;
     this.linkGrupao = options.linkGrupao || process.env.LINK_GRUPO_INTERACAO;
     this.linkAvisos = options.linkAvisos || process.env.LINK_GRUPO_AVISOS;
     this.userAgent = options.userAgent ||  process.env.USER_AGENT || "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36 Edg/136.0.0.0";
@@ -71,6 +72,10 @@ class WhatsAppBot {
     this.streamSystem = null;
     this.streamMonitor = null;
     
+
+    // Monitora estabilidade dos bots entre eles
+    this.stabilityMonitor = options.stabilityMonitor ?? false; 
+
     this.llmService = new LLMService({});
     this.adminUtils = AdminUtils.getInstance();
 
@@ -127,24 +132,29 @@ class WhatsAppBot {
   */
   prepareOtherBotsBlockList() {
     if (!this.otherBots || !this.otherBots.length) return;
+    
+    // Garante que blockedContacts seja um array
+    if (!this.blockedContacts || !Array.isArray(this.blockedContacts)) {
+      this.blockedContacts = [];
+    }
 
-    // Limpa a lista antes de adicionar novamente
-    this.blockedContacts = [];
-
+    // Adiciona IDs dos outros bots à lista de bloqueados
     for (const bot of this.otherBots) {
-      const botId = bot.endsWith("@c.us") ? bot : `${bot}@c.us`;
+      const botId = bot.endsWith("@c.us") ? botId : `${bot}@c.us`;
       this.blockedContacts.push({
         id: {
           _serialized: botId
         },
-        name: `Bot: ${bot}`
+        name: `Bot: ${bot.id || 'desconhecido'}`
       });
-
-      this.logger.info(`Adicionado bot '${bot}' (${botId}) à lista de ignorados`);
+      
+      this.logger.info(`Adicionado bot '${bot.id}' (${botId}) à lista de ignorados`);
+      
     }
-
+    
     this.logger.info(`Lista de ignorados atualizada: ${this.blockedContacts.length} contatos/bots`, this.blockedContacts );
-}
+
+  }
 
     /**
    * Verifica se uma mensagem está dentro do período inicial de descarte
@@ -177,13 +187,6 @@ class WhatsAppBot {
       this.eventHandler.onConnected(this);
 
        
-      try {
-        this.blockedContacts = await this.client.getBlockedContacts();
-        this.logger.info(`Carregados ${this.blockedContacts.length} contatos bloqueados`);
-      } catch (error) {
-        this.logger.error('Erro ao carregar contatos bloqueados:', error);
-        this.blockedContacts = [];
-      }
 
 
       // Envia notificação de inicialização para o grupo de logs
@@ -206,11 +209,17 @@ class WhatsAppBot {
         }
       }
 
-      if (this.otherBots && this.otherBots.length > 0) {
-        this.prepareOtherBotsBlockList();
+      try {
+        this.blockedContacts = await this.client.getBlockedContacts();
+        this.logger.info(`Carregados ${this.blockedContacts.length} contatos bloqueados`);
+
+        if (this.isConnected && this.otherBots.length > 0) {
+          this.prepareOtherBotsBlockList();
+        }
+      } catch (error) {
+        this.logger.error('Erro ao carregar contatos bloqueados:', error);
+        this.blockedContacts = [];
       }
-
-
 
       // Inicializa o sistema de streaming agora que estamos conectados
       this.streamSystem = new StreamSystem(this);
@@ -238,6 +247,12 @@ class WhatsAppBot {
 
     // Evento de mensagem
     this.client.on('message', async (message) => {
+
+      // Mais importante de tudo: registrar que o bot tá 'on'
+      if(this.stabilityMonitor){
+        this.stabilityMonitor.registerBotMessage(message);
+      }
+
       // Descarta mensagens nos primeiros 5 segundos após inicialização
       if (this.shouldDiscardMessage()) {
         this.logger.debug(`Descartando mensagem recebida durante período inicial de ${this.id}`);
@@ -252,6 +267,8 @@ class WhatsAppBot {
       const responseTime = Math.max(0, currentTimestamp - messageTimestamp); // Não permite valores negativos
       
       // Verifica se o tempo de resposta é muito alto e se precisamos reiniciar o bot
+      // DESABILITADO Temporariamente
+      /*
       if (responseTime > 60 && false) { // Desativado reiniciar por delay
         // Verifica se o bot não foi reiniciado recentemente pelo mesmo motivo
         const currentTime = Math.floor(Date.now() / 1000);
@@ -272,11 +289,12 @@ class WhatsAppBot {
           this.logger.warn(`Delay de resposta elevado (${responseTime}s), mas o bot já foi reiniciado recentemente. Aguardando.`);
         }
       }
+      */
 
       try {
         // Verifica se a mensagem é de um grupo a ser ignorado
-        if (message.from === this.grupoLogs || message.from === this.grupoInvites) {
-          this.logger.debug(`Ignorando mensagem do grupo de logs/invites: ${message.from}`);
+        if (message.from === this.grupoLogs || message.from === this.grupoInvites || message.from === this.grupoEstabilidade) {
+          //this.logger.debug(`Ignorando mensagem do grupo de logs/invites/estabilidade: ${message.from}`);
           return; // Ignora o processamento adicional
         }
 
@@ -456,6 +474,9 @@ class WhatsAppBot {
       } else if (message.type === 'sticker') {
         type = 'sticker';
         content = await message.downloadMedia();
+      } else if (message.type === 'location') {
+        type = 'location';
+        content = message.location;
       }
       
       return {
@@ -500,7 +521,14 @@ class WhatsAppBot {
 
       if (typeof content === 'string') {
         return await this.client.sendMessage(chatId, content, options);
-      } else if (content instanceof MessageMedia) {
+      } else if (content instanceof Location) {
+        try{
+          return await this.client.sendMessage(chatId, content, options);
+        } catch(err){
+          this.logger.error(`Erro ao enviar mensagem Location pra ${chatId}:`, err, content, fullOpts);
+        }
+      }
+      else if (content instanceof MessageMedia) {
         const fullOpts = {
           caption: options.caption,
           sendMediaAsSticker: options.asSticker || false,
@@ -509,6 +537,15 @@ class WhatsAppBot {
 
         try{
           return await this.client.sendMessage(chatId, content, fullOpts);
+        } catch(err){
+          this.logger.error(`Erro ao enviar mensagem MessageMedia pra ${chatId}:`, err, content, fullOpts);
+        }
+      } else {
+
+        this.logger.info(`[sendMessage] Mensagem de tipo indefinido?`, content);
+        console.log(content);
+        try{
+          return await this.client.sendMessage(chatId, content, options);
         } catch(err){
           this.logger.error(`Erro ao enviar mensagem pra ${chatId}:`, err, content, fullOpts);
         }

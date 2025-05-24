@@ -432,10 +432,10 @@ class StreamMonitor extends EventEmitter {
               
                 if (!channelExists) {
                   this.logger.info(`[cleanupChannelList] Canal Twitch não encontrado: ${channelCheck} - Removendo do grupo ${group.id} (${group.name || 'sem nome'})`);
-                  channelsToRemove.push(channel.channel.toLowerCase());
+                  channelsToRemove.push(channelCheck.toLowerCase());
                   continue;
                 } else {
-                  this.logger.info(`[cleanupChannelList] ${channelCheck} @ (${group.name || 'sem nome'}, ok, existe!`);
+                  this.logger.info(`[cleanupChannelList] ${channelCheck} @ (${group.name || 'sem nome'}), ok, existe!`);
                 }
                 await sleep(500);  // API da twitch fica nervosa com spam
               }
@@ -446,15 +446,17 @@ class StreamMonitor extends EventEmitter {
         // Passei por todos os grupos mas não encontrei o canal, só dá unsubscribe
         // Provavelmente chegou aqui pq configuraram errado e depois removeram antes do bot mesmo remover
         if(!channelHasGroup){
+            const resUnsub = await this.unsubscribe(channelCheck, 'twitch');
             this.logger.info(`[cleanupChannelList] Canal Twitch não está em grupo algum: ${channelCheck} - Apenas unsubscribe ${resUnsub}`);
-            const resUnsub = this.unsubscribe(channelCheck, 'twitch');
         }
       }
 
-      if (channelsToRemove.length > 0) {
-        group.twitch = group.twitch.filter(c => !channelsToRemove.includes(c.channel.toLowerCase()));
-        await this.bot.database.saveGroup(group);
-        this.logger.info(`[cleanupChannelList] Removidos ${channelsToRemove.length} canais inexistentes do grupo ${group.id}`, channelsToRemove);
+      for (const group of groups) {
+        if (channelsToRemove.length > 0) {
+          group.twitch = group.twitch.filter(c => !channelsToRemove.includes(c.channel.toLowerCase()));
+          await this.bot.database.saveGroup(group);
+          this.logger.info(`[cleanupChannelList] Removidos ${channelsToRemove.length} canais inexistentes do grupo ${group.id}`, channelsToRemove);
+        }
       }
     } catch (error) {
       this.logger.error('[cleanupChannelList] Erro ao fazer limpeza dos canais:', error);

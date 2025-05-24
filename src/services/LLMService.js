@@ -16,7 +16,7 @@ class LLMService {
     this.googleKey = config.googleKey || process.env.GOOGLE_API_KEY;
     this.deepseekKey = config.deepseekKey || process.env.DEEPSEEK_API_KEY;
     this.localEndpoint = config.localEndpoint || process.env.LOCAL_LLM_ENDPOINT || 'http://localhost:1234/v1';
-    this.apiTimeout = config.apiTimeout || parseInt(process.env.API_TIMEOUT) || 120000;
+    this.apiTimeout = config.apiTimeout || parseInt(process.env.API_TIMEOUT) || 10000;
     
     /*  
     this.logger.debug('LLMService inicializado com configuração:', {
@@ -100,15 +100,22 @@ class LLMService {
         throw new Error('Chave da API Google não configurada');
       }
 
-      const model = options.model || 'gemini-1.5-flash';
+      const model = options.model || 'gemini-2.0-flash-exp';
       this.logger.debug('Enviando solicitação para API Gemini:', { 
         model: model,
         promptLength: options.prompt.length,
-        maxTokens: options.maxTokens || 1000
+        maxTokens: options.maxTokens || 5000
       });
+
+      if(options.systemContext){
+        this.logger.info(`[geminiCompletion] Usando ctx personalizado: ${options.systemContext.trim(0, 30)}...`);
+      }
+
+      this.logger.info(`[geminiCompletion] Prompt: ${options.prompt.trim(0, 30)}...`);
 
       // Endpoint da API Gemini
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.googleKey}`;
+
 
       const response = await axios.post(
         endpoint,
@@ -116,8 +123,16 @@ class LLMService {
           contents: [
             { role: 'user', parts: [{ text: options.prompt }] }
           ],
+          system_instruction:
+          {
+            parts: [
+              {
+                text: options.systemContext ?? "Você é ravena, um bot de whatsapp criado por moothz"
+              }
+            ]
+          },
           generationConfig: {
-            maxOutputTokens: options.maxTokens || 1000,
+            maxOutputTokens: options.maxTokens || 5000,
             temperature: options.temperature || 0.7
           }
         },
@@ -203,7 +218,7 @@ class LLMService {
    * Envia uma solicitação de completação para OpenAI (ou LM Studio local)
    * @param {Object} options - Opções de solicitação
    * @param {string} options.prompt - O texto do prompt
-   * @param {string} [options.model='mistral-7b-instruct-v0.1'] - O modelo a usar
+   * @param {string} [options.model='gpt-3.5-turbo'] - O modelo a usar
    * @param {number} [options.maxTokens=1000] - Número máximo de tokens a gerar
    * @param {number} [options.temperature=0.7] - Temperatura de amostragem
    * @param {boolean} [options.useLocal=false] - Se deve usar o endpoint LM Studio local
@@ -225,7 +240,7 @@ class LLMService {
 
       this.logger.debug(`Enviando solicitação para API ${options.useLocal ? 'LM Studio Local' : 'OpenAI'}:`, { 
         endpoint,
-        model: options.model || 'mistral-7b-instruct-v0.1',
+        model: options.model || 'gpt-3.5-turbo',
         promptLength: options.prompt.length,
         maxTokens: options.maxTokens || 1000
       });
@@ -233,7 +248,7 @@ class LLMService {
       const response = await axios.post(
         endpoint,
         {
-          model: options.model || 'mistral-7b-instruct-v0.1',
+          model: options.model || 'gpt-3.5-turbo',
           messages: [
             { role: 'user', content: options.prompt }
           ],
@@ -369,16 +384,16 @@ class LLMService {
         const response = await this.geminiCompletion(options);
         return response.candidates[0].content.parts[0].text;
       }},
-      { name: 'deepseek-r1', method: async () => {
-        const response = await this.deepseekCompletion({...options, version: 'v1'});
-        return response.choices[0].message.content;
-      }},
-      { name: 'deepseek', method: async () => {
-        const response = await this.deepseekCompletion({...options, version: 'v3'});
-        return response.choices[0].message.content;
-      }},
+      // { name: 'deepseek-r1', method: async () => {
+      //   const response = await this.deepseekCompletion({...options, version: 'v1'});
+      //   return response.choices[0].message.content;
+      // }},
+      // { name: 'deepseek', method: async () => {
+      //   const response = await this.deepseekCompletion({...options, version: 'v3'});
+      //   return response.choices[0].message.content;
+      // }},
       { name: 'local', method: async () => {
-        const response = await this.openAICompletion({ ...options, useLocal: true });
+        const response = await this.openAICompletion({ ...options, useLocal: true, model: "hermes-3-llama-3.1-8b"});
         return response.choices[0].message.content;
       }}
     ];

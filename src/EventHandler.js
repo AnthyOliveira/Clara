@@ -12,6 +12,7 @@ const RankingMessages = require('./functions/RankingMessages');
 const fs = require('fs').promises;
 const path = require('path');
 const Stickers = require('./functions/Stickers');
+const GeoGuesser = require('./functions/GeoguesserGame');
 
 class EventHandler {
   constructor() {
@@ -125,6 +126,7 @@ class EventHandler {
    */
   async processMessage(bot, message) {
     try {
+
       // Verifica links de convite em chats privados
       if (!message.group) {
         // Verifica se é uma mensagem de link de convite
@@ -148,7 +150,6 @@ class EventHandler {
       let group = null;
       if (message.group) {
         group = await this.getOrCreateGroup(message.group);
-
         if(!group.botNotInGroup){
           group.botNotInGroup = [];
         } else {
@@ -273,8 +274,6 @@ class EventHandler {
           
           return; // Evita processamento adicional
         }
-        
-
 
         // Processa comando normal
         this.commandHandler.handleCommand(bot, message, commandText, group).catch(error => {
@@ -282,6 +281,7 @@ class EventHandler {
         });
       } else {
         // Processa mensagem não-comando
+        // Aqui também vai cair quando o grupo tiver a opção customIgnoresPrefix, que os comandos personalizados não precisam de prefixo
         this.processNonCommandMessage(bot, message, group).catch(error => {
           this.logger.error('Erro em processNonCommandMessage:', error);
         });
@@ -298,7 +298,6 @@ class EventHandler {
    * @param {Group} group - O objeto do grupo (se em grupo)
    */
   async processNonCommandMessage(bot, message, group) {
-
     // Verifica se é uma mensagem de voz para processamento automático de STT    
     const processed = await SpeechCommands.processAutoSTT(bot, message, group);
     if (processed) return;
@@ -308,7 +307,17 @@ class EventHandler {
       if (stickerProcessed) return;
     }
 
+    // Trigger para jogos
+    if (group && message.type === 'location') {
+      const respGeo = await GeoGuesser.processLocationMessage(bot, message);
+      if(respGeo){
+        bot.sendReturnMessages(respGeo);
+      }
+    }
+
     if (group && message.type === 'text') {
+
+      // Vê se a mensagem não é um MuNews
       try {
         const isNewsDetected = await MuNewsCommands.detectNews(message.content, group.id);
         if (isNewsDetected) {
@@ -323,12 +332,19 @@ class EventHandler {
       }
     }
         
-    // Manipula comandos personalizados acionados automaticamente (aqueles que não requerem prefixo)
     if (group) {
       try {
+        // Se o grupo escolheu a opção 'customIgnoresPrefix', pode ser que um comando personalizado esteja sendo executado
+        // Gera um comando e manda pro handleCommand, mas com a flag de ser apenas custom
         const textContent = message.type === 'text' ? message.content : message.caption;
+
+        if(group.customIgnoresPrefix){
+          this.commandHandler.processCustomIgnoresPrefix(textContent, bot, message, group);
+        }
+
         if (textContent) {
-          await this.commandHandler.checkAutoTriggeredCommands(bot, message, textContent, group);
+          // Manipula comandos personalizados acionados automaticamente (aqueles que não requerem prefixo)
+          this.commandHandler.checkAutoTriggeredCommands(bot, message, textContent, group);
         }
       } catch (error) {
         this.logger.error('Erro ao verificar comandos acionados automaticamente:', error);
@@ -346,7 +362,7 @@ class EventHandler {
   async applyFilters(bot, message, group) {
     if (!group || !group.filters) return false;
     
-    const textContent = message.type === 'text' ? message.content : message.caption;
+    const textContent = message.type === 'text' ? message.content : message.caption ?? "";
     
     if(textContent.includes("g-filtro")){
       return false; // Não filtrar comandos de filtro
@@ -488,7 +504,6 @@ class EventHandler {
    * @param {Object} data - Dados do evento
    */
   async processGroupJoin(bot, data) {
-    console.log(data);
     this.logger.info(`Usuário ${data.user.name} (${data.user.id}) entrou no grupo ${data.group.name} (${data.group.id}). Quem adicionou: ${data.responsavel.name}/${data.responsavel.id}`);
     
     try {
@@ -497,7 +512,7 @@ class EventHandler {
       
       // Verifica se o próprio bot é quem está entrando
       const isBotJoining = data.user.id === bot.client.info.wid._serialized;
-      console.log(`isBotJoining (${isBotJoining}}) = data.user.id (${data.user.id}) === bot.client.info.wid._serialized ${bot.client.info.wid._serialized}`);
+      //console.log(`isBotJoining (${isBotJoining}}) = data.user.id (${data.user.id}) === bot.client.info.wid._serialized ${bot.client.info.wid._serialized}`);
       
       // Obtém ou cria grupo
       const group = await this.getOrCreateGroup(data.group.id, data.group.name);
@@ -542,7 +557,7 @@ class EventHandler {
         let botInfoMessage = `🦇 Olá, grupo! Eu sou a *ravenabot*, um bot de WhatsApp. Use "${group.prefix}cmd" para ver os comandos disponíveis.`;
       
         try {
-          const groupJoinPath = path.join(__dirname, '../data/textos/groupJoin.txt');
+          const groupJoinPath = path.join(this.database.databasePath, 'textos', 'groupJoin.txt');
           
           // Verifica se o arquivo existe
           const fileExists = await fs.access(groupJoinPath).then(() => true).catch(() => false);
@@ -623,9 +638,9 @@ class EventHandler {
         // Caso 2: Outra pessoa entrou no grupo
         // Gera e envia mensagem de boas-vindas para o novo membro
         if (group.greetings) {
-          this.generateGreetingMessage(bot, group, data.user, chat).then(welcomeMessage => {
-            if (welcomeMessage) {
-              bot.sendMessage(group.id, welcomeMessage).catch(error => {
+          this.generateGreetingMessage(bot, group, data.user, chat).then(welcome => {
+            if (welcome) {
+              bot.sendMessage(group.id, welcome.message, { mentions: welcome.mentions }).catch(error => {
                 this.logger.error('Erro ao enviar mensagem de boas-vindas:', error);
               });
             }
@@ -645,7 +660,6 @@ class EventHandler {
    * @param {Object} data - Dados do evento
    */
   async processGroupLeave(bot, data) {
-    console.log(data);
     this.logger.info(`Usuário ${data.user.name} (${data.user.id}) saiu do grupo ${data.group.name} (${data.group.id}). Quem removeu: ${data.responsavel.name}/${data.responsavel.id}`);
     
     try {
@@ -706,15 +720,28 @@ class EventHandler {
       
       // Se houver múltiplos usuários, prepara os nomes
       let nomesPessoas = "";
+      let numeroPessoas = "";
       let quantidadePessoas = 1;
       let isPlural = false;
-      
+      let mentions = [];
+
+      /*
       if (Array.isArray(user)) {
         nomesPessoas = user.map(u => u.name || "Alguém").join(", ");
         quantidadePessoas = user.length;
         isPlural = quantidadePessoas > 1;
       } else {
         nomesPessoas = user.name || "Alguém";
+      }*/
+
+       if (Array.isArray(user)) {
+        numeroPessoas = user.map(u => `@${u.id.split('@')[0]}` || "@123456780").join(", ");
+        quantidadePessoas = user.length;
+        isPlural = quantidadePessoas > 1;
+        mentions = user.map(u => u.id);
+      } else {
+        numeroPessoas = `@${user.id.split('@')[0]}` || "@123456780";
+        mentions = [user.id];
       }
 
       // Se saudação de texto
@@ -723,12 +750,14 @@ class EventHandler {
         let message = group.greetings.text;
         
         // Variáveis básicas
-        message = message.replace(/{pessoa}/g, nomesPessoas);
+        //message = message.replace(/{pessoa}/g, nomesPessoas);
+        message = message.replace(/{pessoa}/g, numeroPessoas); // Usa o numero pra marcar
         
         // Variáveis de grupo
         message = message.replace(/{tituloGrupo}/g, chatData?.name || "Grupo");
         message = message.replace(/{nomeGrupo}/g, group?.name || "Grupo");
-        message = message.replace(/{nomePessoas}/g, nomesPessoas);
+        message = message.replace(/{nomePessoas}/g, numeroPessoas);
+        message = message.replace(/{numeroPessoas}/g, numeroPessoas);
         
         // Variáveis de pluralidade
         if (isPlural) {
@@ -745,7 +774,7 @@ class EventHandler {
           message = message.replace(/{plural_esao}/g, "é");
         }
         
-        return message;
+        return { message, mentions };
       }
       
       // Se saudação de sticker
@@ -781,9 +810,10 @@ class EventHandler {
       if (group.farewells.text) {
         // Substitui variáveis
         let message = group.farewells.text;
-        message = message.replace(/{pessoa}/g, user.name);
+        message = message.replace(/{pessoa}/g, `@${user.id.split('@')[0]}`);
         
-        return message;
+        const mentions = [user.id];
+        return { message, mentions };
       }
       
       // Despedida padrão

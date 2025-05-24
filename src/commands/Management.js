@@ -13,7 +13,7 @@ class Management {
     this.logger = new Logger('management');
     this.database = Database.getInstance();
     this.nsfwPredict = NSFWPredict.getInstance();
-    this.dataPath = path.join(__dirname, '../../data');
+    this.dataPath = this.database.databasePath;
     
     // Mapeamento de comando para método
     this.commandMap = {
@@ -36,6 +36,10 @@ class Management {
       'setPrefixo': {
         method: 'setCustomPrefix',
         description: 'Altera o prefixo de comandos (padrão !)'
+      },
+      'setCustomSemPrefixo': {
+        method: 'setCustomSemPrefixo',
+        description: 'Faz com que comandos personalizados não precisem de prefixo'
       },
       'setBemvindo': {
         method: 'setWelcomeMessage',
@@ -111,7 +115,11 @@ class Management {
       },
       'mute': {
         method: 'muteCommand',
-        description: 'Desativa comando com a palavra especificada'
+        description: 'Desativa/ativa comando com a palavra especificada'
+      },
+      'muteCategoria': {
+        method: 'toggleMuteCategory',
+        description: 'Desativa/ativa todos os comandos da categoria especificada'
       },
       'customAdmin': {
         method: 'customAdmin',
@@ -776,6 +784,31 @@ class Management {
     });
   }
   
+  async setCustomSemPrefixo(bot, message, args, group) {
+    if (!group) {
+      return new ReturnMessage({
+        chatId: message.author,
+        content: 'Este comando só pode ser usado em grupos.'
+      });
+    }
+    
+    // Alterna a configuração de auto-STT
+    group.customIgnoresPrefix = !group.customIgnoresPrefix;
+    
+    // Atualiza grupo no banco de dados
+    await this.database.saveGroup(group);
+    
+    // Envia mensagem de confirmação
+    const statusMsg = group.customIgnoresPrefix ? 
+      'Os comandos personalizados do grupo agora *não precisam* mais do prefixo pra serem ativados.' : 
+      'Os comandos personalizados do grupo agora *precisam* do prefixo para serm ativados _(funcionamento normal)_.';
+    
+    return new ReturnMessage({
+      chatId: group.id,
+      content: statusMsg
+    });
+  }
+
   /**
    * Define prefixo personalizado para um grupo
    * @param {WhatsAppBot} bot - Instância do bot
@@ -1335,7 +1368,11 @@ async setWelcomeMessage(bot, message, args, group) {
       }
       
       if (group.mutedStrings && group.mutedStrings.length > 0) {
-        infoMessage += `*Strings Ignoradas:* ${group.mutedStrings.length}\n`;
+        infoMessage += `*Comandos Ignorados:* ${group.mutedStrings.length}\n`;
+      }
+
+      if (group.mutedCategories && group.mutedCategories.length > 0) {  
+        infoMessage += `\n*Categorias Silenciadas:* ${group.mutedCategories.join(', ')}\n`;  
       }
       
       // Apelidos configurados
@@ -1936,7 +1973,7 @@ async setWelcomeMessage(bot, message, args, group) {
       });
     }
     
-    const channelName = args[0].replace("https://www.twitch.tv/", "").toLowerCase();
+    const channelName = args[0].replace("https://www.twitch.tv/", "").replace("http://www.twitch.tv/", "").toLowerCase();
     
     // Get current channels
     const channels = this.getChannelConfig(group, 'twitch');
@@ -1963,12 +2000,16 @@ async setWelcomeMessage(bot, message, args, group) {
     } else {
       // Check if the channel exists on Twitch before adding
       if (bot.streamMonitor) {
-        const channelExists = await bot.streamMonitor.twitchChannelExists(channelName);
+        const charsValidos = /^(#)?[a-zA-Z0-9_]{4,25}$/;
+        let channelExists = charsValidos.test(channelName);
+        if(channelExists){ // só verifica se for um nome válido
+         channelExists = await bot.streamMonitor.twitchChannelExists(channelName);
+        }
         
         if (!channelExists) {
           return new ReturnMessage({
             chatId: group.id,
-            content: `❌ Erro: O canal "${channelName}" não existe na Twitch ou não foi possível verificá-lo.`
+            content: `❌ Erro: O canal "${channelName}" não existe na Twitch. Use apenas o nome do seu canal, sem caracteres extras.`
           });
         }
         
@@ -3667,6 +3708,62 @@ async setWelcomeMessage(bot, message, args, group) {
         content: 'Erro ao processar comando. Por favor, tente novamente.'
       });
     }
+  }
+
+  async toggleMuteCategory(bot, message, args, group) {  
+    if (!group) {  
+      return new ReturnMessage({  
+        chatId: message.author,  
+        content: 'Este comando só pode ser usado em grupos.'  
+      });  
+    }  
+      
+    if (args.length === 0) {  
+      // Show current muted categories  
+      const mutedCategories = group.mutedCategories || [];  
+        
+      if (mutedCategories.length === 0) {  
+        return new ReturnMessage({  
+          chatId: group.id,  
+          content: 'Não há categorias silenciadas neste grupo. Use !g-muteCategoria [categoria] para silenciar uma categoria inteira de comandos.'  
+        });  
+      }  
+        
+      return new ReturnMessage({  
+        chatId: group.id,  
+        content: `*Categorias silenciadas:*\n${mutedCategories.join(', ')}`  
+      });  
+    }  
+      
+    const category = args[0].toLowerCase();  
+      
+    // Initialize mutedCategories if it doesn't exist  
+    if (!group.mutedCategories) {  
+      group.mutedCategories = [];  
+    }  
+      
+    // Check if category is already muted  
+    const index = group.mutedCategories.indexOf(category);  
+      
+    if (index !== -1) {  
+      // Remove category from muted list  
+      group.mutedCategories.splice(index, 1);  
+      await this.database.saveGroup(group);  
+        
+      return new ReturnMessage({  
+        chatId: group.id,  
+        content: `✅ Categoria '${category}' foi reativada.`  
+      });  
+    } else {  
+      // Add category to muted list  
+      group.mutedCategories.push(category);  
+      await this.database.saveGroup(group);  
+        
+      return new ReturnMessage({  
+        chatId: group.id,  
+        content: `🔇 Categoria '${category}' foi silenciada.`  
+      });  
+    }  
   }
 
   /**

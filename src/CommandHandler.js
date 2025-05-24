@@ -100,7 +100,7 @@ class CommandHandler {
    */
   async loadCooldowns() {
     try {
-      const cooldownsPath = path.join(__dirname, '../data/cooldowns.json');
+      const cooldownsPath = path.join(this.database.databasePath, 'cooldowns.json');
       try {
         const data = await fs.readFile(cooldownsPath, 'utf8');
         this.cooldowns = JSON.parse(data);
@@ -124,15 +124,8 @@ class CommandHandler {
    */
   async saveCooldowns() {
     try {
-      const cooldownsPath = path.join(__dirname, '../data/cooldowns.json');
-      
-      // Cria o diretório data se não existir
-      const dataDir = path.join(__dirname, '../data');
-      try {
-        await fs.access(dataDir);
-      } catch (error) {
-        await fs.mkdir(dataDir, { recursive: true });
-      }
+      const cooldownsPath = path.join(this.database.databasePath, 'cooldowns.json');
+  
       
       await fs.writeFile(cooldownsPath, JSON.stringify(this.cooldowns, null, 2));
       this.cooldownsLastSaved = Date.now();
@@ -709,7 +702,8 @@ class CommandHandler {
         }
 
         messageClone.origin = message.origin; // Aqui precisa, obrigatoriamente, ser a referência, não cópia
-        
+        messageClone.origin.body = messageClone.origin.body.replace(`${group.prefix} `, group.prefix); // "! " vira "!"
+
         const managementResponse = await this.management[methodName](bot, messageClone, args, group, this.privateManagement);
         
         // Se a resposta for ReturnMessage ou array de ReturnMessage, modifica chatId se necessário
@@ -773,8 +767,17 @@ class CommandHandler {
    */
   async executeFixedCommand(bot, message, command, args, group) {
     try {
-      //this.logger.info(`Executando comando fixo: ${command.name}, args: ${args.join(', ')}`);
-      
+      this.logger.info(`Executando comando fixo: ${command.name}@${command.category}, args: ${args.join(', ')}`);
+
+      // Verifica se a categoria de comando não está mutada
+      if (group && group.mutedCategories && Array.isArray(group.mutedCategories)) {  
+        if (command && command.category &&   
+            group.mutedCategories.includes(command.category.toLowerCase())) {  
+          this.logger.debug(`Ignorando comando '${command.name}' da categoria silenciada '${command.category}'`);  
+          return;
+        }  
+      }
+        
       // Verifica se o comando requer mensagem citada
       if (command.needsQuotedMsg) {
         const quotedMsg = await message.origin.getQuotedMessage().catch(() => null);
@@ -1094,6 +1097,19 @@ class CommandHandler {
       await bot.sendReturnMessages(returnMessage);
     }
   }
+
+  processCustomIgnoresPrefix(textContent, bot, message, group){
+      const command =  `${textContent}`;
+
+      this.logger.debug(`[processCustomIgnoresPrefix][${group.name}] Buscando comando '${command}'`);
+      const customCommand = this.findCustomCommand(command, this.customCommands[group.id]);
+      this.logger.debug(customCommand);
+
+      if (customCommand) {
+        this.executeCustomCommand(bot, message, customCommand, [], group);
+      }
+  }
+          
   
   /**
    * Processa uma resposta para um comando personalizado
@@ -1195,8 +1211,8 @@ class CommandHandler {
         });
       }
       
-      // Verifica se é uma resposta de mídia (formato: "{img-filename.png} Legenda")
-      const mediaMatch = processedResponse.match(/^\{(audio|voice|image|video|document|sticker)-([^}]+)\}\s*(.*)/);
+      // Verifica se é uma resposta de mídia (formato: "{img-filename.png} Legenda\nlegenda 2...")
+      const mediaMatch = processedResponse.match(/^\{(audio|voice|image|video|document|sticker)-([^}]+)\}\s*(.*)/s);
       
       if (mediaMatch) {
         const [, mediaType, fileName, caption] = mediaMatch;
@@ -1257,13 +1273,13 @@ class CommandHandler {
     try {
       // Pula se não houver comandos personalizados para este grupo
       if (!this.customCommands[group.id]) {
-        this.logger.debug(`Sem comandos personalizados para o grupo ${group.id}, pulando verificação de auto-trigger`);
+        //this.logger.debug(`Sem comandos personalizados para o grupo ${group.id}, pulando verificação de auto-trigger`);
         return;
       }
 
       // Verifica se o grupo está pausado
       if (group.paused) {
-        this.logger.info(`Ignorando comandos auto-acionados em grupo pausado: ${group.id}`);
+        //this.logger.info(`Ignorando comandos auto-acionados em grupo pausado: ${group.id}`);
         return;
       }
       
